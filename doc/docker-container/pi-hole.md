@@ -68,6 +68,9 @@ Heimnetz / Netzwerk / Netzwerkeinstellungen
 IPv4-Adressen  
 Lokaler DNS-Server: Hier die IP-Adresse des RPi eintragen.
 
+### /etc/hosts
+Damit auf dem Pi-Hole-Dashboard die _Rechner_-Namen und nicht nur deren IP-Adressen angezeigt werden, kann man auf dem RPi (zumindest die Clients mit fix IP-Adresse) in der `/etc/hosts`-Datei eintragen.
+
 ### Local DNS Records
 fritz.box: 192.168.178.1
 
@@ -80,3 +83,7 @@ facebook.com - Add domain as wildcard
 * Gruppen zeitlich steuern, um bestimmte Blacklist-Einträge zu aktivieren bzw. zu deaktivieren: 
 https://discourse.pi-hole.net/t/activate-group-with-cron/32660/9
 
+
+
+https://filterlists.com
+https://github.com/RPiList/specials/blob/master/Blocklisten.md

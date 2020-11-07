@@ -15,8 +15,6 @@ Nun noch mit `sudo service ssh restart` den ssh-Dämon neu starten, damit die ge
 ssh hajo@192.168.178.113 -p 53022
 ```
 
-# Todo
-
 ## ssh über Schlüsselpaar - ohne Kennwort
 ### OpenSSH Public Key Authentifizierung konfigurieren
 
@@ -42,7 +40,7 @@ scp /tmp/tst ubuntu@192.168.178.112:/tmp/tst -p 53022
 
 #### Permission denied (publickey)
 
-Nach einem Update meines Macs funktionierte der ssh-Login nicht mehr. Abhilfe schaft das Kommando:  
+Ab und an, z.B. nach einem Update meines Macs, funktionierte der ssh-Login nicht mehr. Abhilfe schafft das Kommando:  
 
 ```
 ssh-add ~/.ssh/pi_rsa
@@ -54,15 +52,7 @@ Identity added: /Users/hajo/.ssh/pi_rsa (/Users/hajo/.ssh/pi_rsa)
 
 > **Achtung:** Wenn dies durchgeführt ist, kann man den Pi über ssh nicht mehr ohne die Private-Key-Datei erreichen!
 
-In der Konfigurationsdatei `/etc/ssh/sshd_config` den Schlüssel `PasswordAuthentication` auf `no` setzen.
-
-```
-[...]
-# To disable tunneled clear text passwords, change to no here!
-PasswordAuthentication no
-#PermitEmptyPasswords no
-[...]
-```
+In der Konfigurationsdatei (auf dem Pi) `/etc/ssh/sshd_config` den Schlüssel `PasswordAuthentication` auf `no` setzen.
 
 Nun wie schon bekannt, den ssh-Dämon neu starten:  
 `sudo service ssh restart`
@@ -71,3 +61,33 @@ Ein Anmeldeversuch von einem Rechner ohne Zertifikat führt nun zu:
 `pi@192.168.178.112: Permission denied (publickey).`  
 
 Wenn man nun einen weiteren Client zulassen möchte, muss man kurzfristig den ssh-login mit Kennwort wieder aktivieren.  
+
+### Kein Login für Benutzer ohne Kennwort
+Jedes System hat Standard-Benutzer für die kein Passwort festgelegt ist. Für diese Benutzer sollte kein Zugriff per SSH möglich sein. 
+```
+PermitEmptyPasswords no
+```
+
+### Kein login für root per SSH
+root login ist verboten. Login als _normaler_ User und dann sudo.
+```
+PermitRootLogin no
+```
+
+
+
+
+---
+Diese Einstellung habe ich noch nicht verstanden und auch nicht gemacht...
+
+* fail2ban?  
+https://www.heise.de/tipps-tricks/Ubuntu-Firewall-einrichten-4633959.html
+* ufw Firewall aktiviern und konfigurieren
+ 
+```
+[...]
+# To disable tunneled clear text passwords, change to no here!
+PasswordAuthentication no
+#PermitEmptyPasswords no
+[...]
+```
