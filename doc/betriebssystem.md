@@ -205,8 +205,12 @@ sudo service ssh restart
 
 ## Nützliche Pakete
 ```
-sudo apt install make       # Zum Software bauen
-sudo apt install net-tools  # Für netstat
+sudo apt install make               # Zum Software bauen
+sudo apt install net-tools          # Für netstat
+sudo apt-get install openssh-client # Wird für VisualStudio Code remote Edit benötigt
+
+# sudo apt install gitsome    # Für github
+
 ```
 
 Spätestens jetzt ist es sinnvoll, die ersten Maßnahmen zur [Absicherung](./security) des RPi durchzuführn.
