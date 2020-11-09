@@ -7,8 +7,8 @@ Als erstes muss auf dem Remote-Rechner - hier der RPi4 - **OpenSSH** installiert
 sudo apt-get install openssh-client
 ```
 
-Auf dem Client muss die [Remote - SSH extension](vscode:extension/ms-vscode-remote.remote-ssh) in **Visual Studio Code** installiert werden.  
-Nun wird über **Remote-SSH: Connect to host...** die Verbindung zum Remote-Rechner konfiguriert. Da ich den Standard-Port 22 geändert habe, muss das **Configuration File** - ich habe hier `<home>.ssh/config` genutzt - angepasst werden:  
+Auf dem Client muss die **Remote - SSH extension** (Link zur Extension: vscode:extension/ms-vscode-remote.remote-ssh) in **Visual Studio Code** installiert werden.  
+Nun wird über **Remote-SSH: Connect to host...** die Verbindung zum Remote-Rechner konfiguriert. Da ich den Standard-Port 22 geändert habe, muss das **Configuration File** - ich habe hier `<home>/.ssh/config` genutzt - angepasst werden:  
 ```
 Host "Raspberry Pi 4B"
   HostName <RPi IP>
