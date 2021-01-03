@@ -22,6 +22,7 @@ Eine Beschreibung wie man die Datei `docker-compose.yaml` erstellt, gibt es [hie
 
 
 ```
+version: '3.7'
 services:
   pihole:
     image: pihole/pihole:latest
@@ -38,14 +39,15 @@ services:
       - TZ=Europe/Berlin
       - WEBPASSWORD=${PIHOLE_WEBPASSWORD}
       - ServerIP=${PIHOLE_IP}
-      #ServerIP: "${IP}"
-      #DNS1: "127.0.0.1"
-      #DNS2: "192.168.10.221"
+      - DNS1=185.121.177.177
+      - DNS2=94.16.114.254
+
     dns:
       - 127.0.0.1       # Required for local names resolution
-      - 1.1.1.1         # Required during startup when Pi-Hole is not fully started
-    cap_add:
-      - NET_ADMIN
+      - 9.9.9.9         # Required during startup when Pi-Hole is not fully started  - Quad9
+# Wird nur benötigt, wenn Pi-Hole als DHCP Server genutzt wird.
+#    cap_add:            
+#      - NET_ADMIN
     network_mode: host
 ```
 
@@ -60,6 +62,7 @@ Nun ist das Pi-Hole-Web-Interface über die IP-Adresse des Pi verfügbar.
 ## Konfiguration
 > Auf der Fritzbox habe ich **IPv6** deaktiviert.   
 Ob das notwendig ist, weiß ich nicht.  
+Deshalb hab' ich's heute 12.11.2020 mal wieder aktivert
 [Hier](https://gpailler.github.io/2019-10-13-pi4-part4/) gibt es einen Artikel zu Pi-Hole und IPv6.
 
 Damit Pi-Hole genutzt wird, muss man dessen IP-Adresse als DNS-Server eintragen. Damit dies gleich für alle Geräte im eigenen WLAN funktioniert, trägt man diesen auf de Fritzbox ein.
@@ -70,16 +73,21 @@ Lokaler DNS-Server: Hier die IP-Adresse des RPi eintragen.
 
 ### /etc/hosts
 Damit auf dem Pi-Hole-Dashboard die _Rechner_-Namen und nicht nur deren IP-Adressen angezeigt werden, kann man auf dem RPi (zumindest die Clients mit fix IP-Adresse) in der `/etc/hosts`-Datei eintragen.
+BESSER? Bei Setting die FB als DHCP-Server eintragen.
 
 ### Local DNS Records
 fritz.box: 192.168.178.1
 
 ### Blacklist
-facebook.com - Add domain as wildcard
+(^|\.)(facebook|fb|fbcdn|fbsbx|tfbnw)\.(com|net)$ - Add RegExp Filter
 
 ---
 
 ## ToDo
+https://github.com/pi-hole/docker-pi-hole#running-pi-hole-docker
+
+* Port 80 (& 443?) machen Probleme, da auch andere diese Ports nutzen möchten.
+* DNS über https?!
 * Gruppen zeitlich steuern, um bestimmte Blacklist-Einträge zu aktivieren bzw. zu deaktivieren: 
 https://discourse.pi-hole.net/t/activate-group-with-cron/32660/9
 
