@@ -18,7 +18,8 @@ systemctl restart systemd-resolved
 
 Der Befehl `sudo lsof -i :53` zeigt nun nichts mehr an.
 
-Eine Beschreibung wie man die Datei `docker-compose.yaml` erstellt, gibt es [hier](https://www.laub-home.de/wiki/Pi-hole_mit_Docker_Compose_auf_dem_Raspberry_Pi).
+Eine Beschreibung wie man die Datei `docker-compose.yaml` erstellt, gibt es [hier](https://www.laub-home.de/wiki/Pi-hole_mit_Docker_Compose_auf_dem_Raspberry_Pi).  
+Und [hier](https://github.com/pi-hole/docker-pi-hole/) gibt es die _offizielle_ Beschreibung.
 
 
 ```
