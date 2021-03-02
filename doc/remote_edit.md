@@ -22,7 +22,7 @@ Da ich für den RPi4 den Kennwort-losen login über ssh-key konfiguriert habe (s
 ## vscode-Extension: Bilder aus der Zwischenablage in Markdown einfügen
 Bilder in ein Markdown-Dokument einzufügen und zu verlinken, ist manuell recht mühsam. Mit dieser [Extension](https://marketplace.visualstudio.com/items?itemName=mushan.vscode-paste-image) lässt sich das automatisieren.
 
-Bei der Konfiguration bin ich noch unsicher, wie es am sinnvollsten zu machen ist. Derzeit ergänze ich dies in der Datei `<workspace>.code-workspace`:
+Bei der Konfiguration bin ich noch unsicher, wie es am sinnvollsten zu machen ist. Derzeit ergänze ich dies in jedem Workspace in der Datei `<workspace>.code-workspace`:
 ```
 	"settings": {
 		"pasteImage.path": "${projectRoot}/images",
@@ -30,4 +30,5 @@ Bei der Konfiguration bin ich noch unsicher, wie es am sinnvollsten zu machen is
 		"pasteImage.forceUnixStyleSeparator": true,
 		"pasteImage.prefix": "/"
 	}
-```  
+```
+Hierdurch werden die eingefügten Bilder in das Verzeichnis `images` kopiert.
