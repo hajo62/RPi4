@@ -1,7 +1,7 @@
 # Installation von docker
 ubuntu 20.04 und 20.10 bietet **snap** zur Installation von Paketen. Damit läßt sich **docker** ganz einfach installieren. Ich habe jedoch festgestellt, dass dann z.B. bei der Verwendung einer `.env`-Datei bei docker-compose ein Rechteproblem auftrat.
 
-Ich bin dann der Installationsbescheibung auf docker.com gefolgt: [Install Docker Engine on Ubuntu](https://docs.docker.com/engine/install/ubuntu/)
+👉 Ich bin dann doch lieber der Installationsbescheibung auf docker.com gefolgt: [Install Docker Engine on Ubuntu](https://docs.docker.com/engine/install/ubuntu/)
 
 ## docker-Repository hinzufügen
 Update the apt package index and install packages to allow apt to use a repository over HTTPS:
@@ -61,7 +61,7 @@ docker rmi <IMAGE ID>
 ```
 
 ## docker-compose
-https://docs.docker.com/compose/install/  
+Eine Bescheibung der Installation von docker-compose steht [hier](https://docs.docker.com/compose/install/  ). 
 Leider ist dort aber kein Download für den RPi vefügbar, so dass man sich die Software selbst bauen muss.
 
 ```
@@ -75,10 +75,30 @@ Der Build dauert ca. 20 Minuten und anschließend findet sich im Verzeichnis `di
 sudo mv dist/docker-compose-Linux-aarch64 /usr/bin/docker-compose
 ``` 
 
+## Memory
+Unter ubuntu 20.04 zeigt das Kommand `docker info` fehlenden Memory Limit support:
+```
+...
+WARNING: No memory limit support
+WARNING: No swap limit support
+WARNING: No kernel memory limit support
+WARNING: No kernel memory TCP limit support
+WARNING: No oom kill disable support
+```
+Dies sorgt dafür, dass z.B. das Kommando `docker stats` keine Memory-Informationen anzeigt. Aus diesem Grund zeigt auch die [Monitor Docker component](https://github.com/ualex73/monitor_docker) keine Informationen zu Speicher-Nutzung, CPU, etc. an. Abhilfe schafft hier das Aktivieren der `memory cgroup` on Ubuntu 20.04  
+Siehe dazu [hier](https://askubuntu.com/a/1237856).
+In der Datei `/boot/firmware/cmdline.txt` den Wert `cgroup_enable=cpuset cgroup_enable=memory cgroup_memory=1` an den vorhandenen Eintrag anhängen:
+```
+usb-storage.quirks=152d:0578:u net.ifnames=0 dwc_otg.lpm_enable=0 console=serial0,115200 console=tty1 root=PARTUUID=42684546-01 rootfstype=ext4 elevator=deadline rootwait fixrtc cgroup_enable=cpuset cgroup_enable=memory cgroup_memory=1
+```
+
+
+
+---
+>> 🛑 Nicht genutzt wg. Zugriffproblemen bei .env für docker-compose!
 ---
 
 ## Installation mit snap
-> Nicht genutzt wg. Zugriffproblemen bei .env für docker-compose!
 
 ```
 sudo addgroup --system docker
@@ -97,5 +117,3 @@ WARNING: No kernel memory limit support
 WARNING: No kernel memory TCP limit support
 WARNING: No oom kill disable support
 ```
-
-> Ich hatte bei irgendwelchen Versuchen eine Meldung gesehen, man solle das Kommando `sudo snap connect docker:home :home` ausführen?! Bei der aktuellen Installation nicht mehr; also habe ich's auch nicht gemacht.
