@@ -18,3 +18,16 @@ Host "Raspberry Pi 4B"
 ```
 
 Da ich für den RPi4 den Kennwort-losen login über ssh-key konfiguriert habe (siehe [security](./security.md)), erfolgt der Login aus Visual Studio Code auch hier ohne Kennwortabfrage.
+
+## vscode-Extension: Bilder aus der Zwischenablage in Markdown einfügen
+Bilder in ein Markdown-Dokument einzufügen und zu verlinken, ist manuell recht mühsam. Mit dieser [Extension](https://marketplace.visualstudio.com/items?itemName=mushan.vscode-paste-image) lässt sich das automatisieren.
+
+Bei der Konfiguration bin ich noch unsicher, wie es am sinnvollsten zu machen ist. Derzeit ergänze ich dies in der Datei `<workspace>.code-workspace`:
+```
+	"settings": {
+		"pasteImage.path": "${projectRoot}/images",
+		"pasteImage.basePath": "${projectRoot}",
+		"pasteImage.forceUnixStyleSeparator": true,
+		"pasteImage.prefix": "/"
+	}
+```  
