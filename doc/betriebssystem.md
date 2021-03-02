@@ -208,7 +208,13 @@ sudo service ssh restart
 sudo apt install make               # Zum Software bauen
 sudo apt install net-tools          # Für netstat
 sudo apt-get install openssh-client # Wird für VisualStudio Code remote Edit benötigt
+sudo apt install npm                # Z.B: zum bauen des homeetomqtt-Images
 
 # sudo apt install gitsome    # Für github
 
 ```
+
+Bei Zeiten mal nachlesen, ob da was dabei ist:  
+http://raspberry.tips/raspberrypi-tutorials/raspberry-pi-performance-tuning-und-tweaks
+
+https://www.proudcommerce.com/devops/buero-dashboard-mit-raspberry-pi-co2-sensor-und-grafana
