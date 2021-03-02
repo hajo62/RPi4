@@ -6,7 +6,7 @@ Außerdem möchte ich das Betriebssyste von einer ssd-Platte booten, da mir in 2
 Nachdem eeprom und Firmware aktualisiert sind, kann ich nun ubuntu installieren.
 
 ## SD-Karte flashen
-Eine Anleitung für die ersten Schritte gibt es [hier](https://www.bitblokes.de/ubuntu-20-04-lts-auf-raspberry-pi-installieren-und-einrichten-desktop) oder das _offizielle_ [Tutorial von ubuntu.com](https://ubuntu.com/tutorials/how-to-install-ubuntu-desktop-on-raspberry-pi-4#1-overview) die von ubuntu.com.
+Eine Anleitung für die ersten Schritte gibt es [hier](https://www.bitblokes.de/ubuntu-20-04-lts-auf-raspberry-pi-installieren-und-einrichten-desktop) oder das _offizielle_ [Tutorial](https://ubuntu.com/tutorials/how-to-install-ubuntu-desktop-on-raspberry-pi-4#1-overview) von ubuntu.com.
 
 ubuntu-Images gibt es auf der offiziellen [ubuntu.com](https://ubuntu.com/download/raspberry-pi)-Website. 
 Ich nutze [ubuntu20.04.1 Server 64 bit](https://ubuntu.com/download/raspberry-pi/thank-you?version=20.04.1&architecture=server-arm64+raspi).
@@ -32,12 +32,12 @@ Ich habe mich entschlossen, WLAN nicht zu aktiviert.
 
 ## ssh
 **ssh** für den Remotezugriff ist per default aktiviert.  
-Beim ersten Login muss aber gleich das Kennwort geändert werden.
+Beim ersten Login muss aber gleich das Kennwort geändert werden. Also am besten vorher eines überlegen. 😏
 
 ## USB-Boot ermöglichen
-Für das booten von ssd muss ggf. die Firmeware im eeprom aktualisiert werden. Bei meinem Raspberry Pi 4 B von November 2020 war diese bereits auf dem notwendigen Stand. Es hätte also ausgereicht, nur den Abschnitt **USB boot aktivieren** in [Raspbian](./raspbian.mb) auszuführen.
+Für das booten von ssd muss ggf. die Firmeware im eeprom aktualisiert werden. Bei meinem Raspberry Pi 4 B von November 2020 war diese bereits auf dem notwendigen Stand. Es hätte also ausgereicht, nur den Abschnitt **USB boot aktivieren** in [Raspbian](https://github.com/hajo62/RPi4/blob/master/doc/raspbian.md#usb-boot-aktivieren) auszuführen.
 
-Es gibt viele Bescheibungen; zuletzt bin ich dieser [Beschreibung](https://www.pragmaticlinux.com/2020/08/move-the-raspberry-pi-root-file-system-to-a-usb-drive/) und habe folgende Schritte ausgeführt:
+Es gibt viele Bescheibungen; zuletzt bin ich dieser [Beschreibung](https://www.pragmaticlinux.com/2020/08/move-the-raspberry-pi-root-file-system-to-a-usb-drive/) gefolgt und habe folgende Schritte ausgeführt:
 
 SSD-Festplatte über USB anschließen, den Pi booten und einloggen.
 
@@ -123,7 +123,7 @@ sudo rmdir /mnt/sdboot
 sudo rmdir /mnt/sdrootfs
 ```
 
-Nach dem nächsten booten _sollte_ der Pi die boot-Partition der SD-Karte nutzen und anschließend die root-Partition von der ssd-Platte verwenden. Dies kann man überprüfen mit:
+Nach dem nächsten booten _sollte_ der Pi die **boot**-Partition der SD-Karte nutzen und anschließend die **root**-Partition von der ssd-Platte verwenden. Dies kann man überprüfen mit:
 ```
 sudo lsblk -p | grep "disk\|part"
 /dev/sda           8:0    0 238.5G  0 disk 
@@ -200,7 +200,7 @@ sudo nano /etc/ssh/sshd_config
 sudo service ssh restart
 ```
 
-> Ich bin mir nicht sicher, ob der user `ubuntu` eine sudo ohne Kennworteingabe machen konnte, oder nicht. Der umbenannte User kann das jedenfalls nicht mehr!
+> Ich bin mir nicht sicher, ob der user `ubuntu` ein `sudo` ohne Kennworteingabe machen konnte, oder nicht. Der umbenannte User kann das jedenfalls nicht mehr!
 
 
 ## Nützliche Pakete
@@ -214,7 +214,7 @@ sudo apt install npm                # Z.B: zum bauen des homeetomqtt-Images
 
 ```
 
-Bei Zeiten mal nachlesen, ob da was dabei ist:  
+Bei Zeiten mal nachlesen, ob hier noch was nützliches dabei ist:  
 http://raspberry.tips/raspberrypi-tutorials/raspberry-pi-performance-tuning-und-tweaks
 
 https://www.proudcommerce.com/devops/buero-dashboard-mit-raspberry-pi-co2-sensor-und-grafana
