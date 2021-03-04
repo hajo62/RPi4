@@ -58,5 +58,5 @@ Mit dem Kommando `docker-compose pull mariadb` wird das Image heruntergeladen un
 ## Konfiguration
 -- keine Notizen gemacht --
 
-## *Datebank-Browser*
+## *Datenbank-Browser*
 [Hier](https://dbeaver.io/) gibt es **DBeaver**, ein universelles Datenbank-Management-Tool für viele ppopuläre Datenbanken.
