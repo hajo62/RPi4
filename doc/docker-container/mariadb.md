@@ -59,4 +59,4 @@ Mit dem Kommando `docker-compose pull mariadb` wird das Image heruntergeladen un
 -- keine Notizen gemacht --
 
 ## *Datenbank-Browser*
-[Hier](https://dbeaver.io/) gibt es **DBeaver**, ein universelles Datenbank-Management-Tool für viele ppopuläre Datenbanken.
+[Hier](https://dbeaver.io/) gibt es **DBeaver**, ein universelles Datenbank-Management-Tool für viele populäre Datenbanken. Damit kann man einen Blick in die Datenbank werfen und ich habe auch schon mal _falsche_ Werte gelöscht.
