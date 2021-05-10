@@ -1,7 +1,7 @@
 # Betriebssystem installieren
-Meinen ersten Raspberry 3B+ habe ich im November 2018 mit [Raspbian Stretch with desktop](https://www.raspberrypi.org/downloads/raspbian), weil es zu dem Zeitpunkt noch kein ubuntu-Image gab. Da es inzwischen - November 2020 - ein offizielle ubuntu-Images für den Raspberry-Pi gibt, versuche ich es nun mit mit **ubuntu 20.04**.
+Meinen ersten Raspberry 3B+ habe ich im November 2018 mit [Raspbian Stretch with desktop](https://www.raspberrypi.org/downloads/raspbian), weil es zu dem Zeitpunkt noch kein ubuntu-Image gab. Da es inzwischen - November 2020 - ein offizielle ubuntu-Images für den Raspberry-Pi gibt, versuche ich es nun mit mit **ubuntu 20.04** LTS.
 
-Außerdem möchte ich das Betriebssyste von einer ssd-Platte booten, da mir in 2 Jahren bereits 2 SD-Karten _gestorben_ sind. Dazu muss aber das eeprom und die Firmware des Raspberry Pis aktualisert werden. Dies geht wohl mit mit Raspberry Pi OS, so dass dieses kurzzeitig auf der SD-Karte installiert werden muss. Wie **Raspberry Pi OS** installiert wird, habe ich - bis auf das im nächsten Abschnitt beschriebene Flashen der SD-Karte - [hier](./raspbian.md) beschrieben.
+Außerdem möchte ich das Betriebssystem von einer ssd-Platte booten, da mir in 2 Jahren bereits 2 SD-Karten _gestorben_ sind. Dazu muss aber das eeprom und die Firmware des Raspberry Pis aktualisert werden. Dies geht wohl mit mit Raspberry Pi OS, so dass dieses kurzzeitig auf der SD-Karte installiert werden muss. Wie **Raspberry Pi OS** installiert wird, habe ich - bis auf das im nächsten Abschnitt beschriebene Flashen der SD-Karte - [hier](./raspbian.md) beschrieben.
 
 Nachdem eeprom und Firmware aktualisiert sind, kann ich nun ubuntu installieren.
 
@@ -35,9 +35,9 @@ Ich habe mich entschlossen, WLAN nicht zu aktiviert.
 Beim ersten Login muss aber gleich das Kennwort geändert werden. Also am besten vorher eines überlegen. 😏
 
 ## USB-Boot ermöglichen
-Für das booten von ssd muss ggf. die Firmware im eeprom aktualisiert werden. Bei meinem Raspberry Pi 4 B von November 2020 war diese bereits auf dem notwendigen Stand. Es hätte also ausgereicht, nur den Abschnitt **USB boot aktivieren** in [Raspbian](https://github.com/hajo62/RPi4/blob/master/doc/raspbian.md#usb-boot-aktivieren) auszuführen.
+Für das booten von ssd muss ggf. die Firmware im eeprom aktualisiert werden. Bei meinem Raspberry Pi 4B von November 2020 war diese bereits auf dem notwendigen Stand. Es hätte also ausgereicht, nur den Abschnitt **USB boot aktivieren** in [Raspbian](https://github.com/hajo62/RPi4/blob/master/doc/raspbian.md#usb-boot-aktivieren) auszuführen.
 
-Es gibt viele Bescheibungen; zuletzt bin ich dieser [Beschreibung](https://www.pragmaticlinux.com/2020/08/move-the-raspberry-pi-root-file-system-to-a-usb-drive/) gefolgt und habe folgende Schritte ausgeführt:
+Es gibt viele Beschreibungen; zuletzt bin ich dieser [Beschreibung](https://www.pragmaticlinux.com/2020/08/move-the-raspberry-pi-root-file-system-to-a-usb-drive/) gefolgt und habe folgende Schritte ausgeführt:
 
 SSD-Festplatte über USB anschließen, den Pi booten und einloggen.
 
@@ -46,7 +46,7 @@ Anzeigen der Datenträger.
 sudo lsblk
 ```
 
-Mounten der SD-Karten und ssd-Platteb-Partitionen.
+Mounten der SD-Karten und ssd-Platten-Partitionen.
 ```
 sudo mkdir -p /mnt/usbdrive
 sudo mkdir -p /mnt/sdboot
@@ -58,7 +58,7 @@ sudo mount /dev/mmcblk0p2 /mnt/sdrootfs
 lsblk -p | grep "disk\|part"
 ```
 
-Kopieren des root-Filesystemd von der SD-Karte auf die ssd-Platte.
+Kopieren des root-Filesystems von der SD-Karte auf die ssd-Platte.
 ```
 sudo rsync -axv /mnt/sdrootfs/* /mnt/usbdrive
 ```
@@ -113,7 +113,7 @@ PARTUUID=42684546-01	/	 ext4	defaults	0 0
 LABEL=system-boot       /boot/firmware  vfat    defaults        0       1
 ```
 
-Unmount der Partitionen und entfernen der Mountpoints
+Unmount der Partitionen und entfernen der Mountpoints:
 ```
 sudo umount /mnt/usbdrive
 sudo umount /mnt/sdboot
@@ -172,7 +172,7 @@ NTP service: active
 Ändern des Hostnamens von `ubuntu` z.B. in `rpi4b`.
 ```
 sudo hostnamectl set-hostname rpi4b
-sudo hostnamectl set-hostname "RaspberryPi 4 B" --pretty
+sudo hostnamectl set-hostname "RaspberryPi 4B" --pretty
 ```
 
 ## username ändern
@@ -193,7 +193,7 @@ usermod -d /home/hajo hajo
 ```
 
 Nun als `root` abmelden und als `hajo` anmelden.  
-Das Kennwort für `root` löschen und den Eintrag ` PermitRootLogin yes` aus der Datei `/etc/ssh/sshd_config` entfernen:
+Das Kennwort für `root` löschen und den Eintrag ` PermitRootLogin yes` aus der Datei `/etc/ssh/sshd_config` wieder entfernen:
 ```
 sudo passwd -l root
 sudo nano /etc/ssh/sshd_config
