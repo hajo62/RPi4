@@ -1,7 +1,7 @@
 # Betriebssystem installieren
 Meinen ersten Raspberry 3B+ habe ich im November 2018 mit [Raspbian Stretch with desktop](https://www.raspberrypi.org/downloads/raspbian), weil es zu dem Zeitpunkt noch kein ubuntu-Image gab. Da es inzwischen - November 2020 - ein offizielle ubuntu-Images für den Raspberry-Pi gibt, versuche ich es nun mit mit **ubuntu 20.04** LTS.
 
-Außerdem möchte ich das Betriebssystem von einer ssd-Platte booten, da mir in 2 Jahren bereits 2 SD-Karten _gestorben_ sind. Dazu muss aber das eeprom und die Firmware des Raspberry Pis aktualisert werden. Dies geht wohl mit mit Raspberry Pi OS, so dass dieses kurzzeitig auf der SD-Karte installiert werden muss. Wie **Raspberry Pi OS** installiert wird, habe ich - bis auf das im nächsten Abschnitt beschriebene Flashen der SD-Karte - [hier](./raspbian.md) beschrieben.
+Außerdem möchte ich das Betriebssystem von einer ssd-Platte booten, da mir in 2 Jahren bereits 2 SD-Karten _gestorben_ sind. Dazu muss aber das eeprom und die Firmware des Raspberry Pis aktualisert werden. Dies geht wohl mit mit Raspberry Pi OS, so dass dieses kurzzeitig auf der SD-Karte installiert werden muss. Wie **Raspberry Pi OS** installiert wird, habe ich - bis auf das im nächsten Abschnitt beschriebene Flashen der SD-Karte - [hier](./Install_Raspberry_Pi-OS.md) beschrieben.
 
 Nachdem eeprom und Firmware aktualisiert sind, kann ich nun ubuntu installieren.
 
