@@ -35,7 +35,7 @@ Ich habe mich entschlossen, WLAN nicht zu aktiviert.
 Beim ersten Login muss aber gleich das Kennwort geändert werden. Also am besten vorher eines überlegen. 😏
 
 ## USB-Boot ermöglichen
-Für das booten von ssd muss ggf. die Firmeware im eeprom aktualisiert werden. Bei meinem Raspberry Pi 4 B von November 2020 war diese bereits auf dem notwendigen Stand. Es hätte also ausgereicht, nur den Abschnitt **USB boot aktivieren** in [Raspbian](https://github.com/hajo62/RPi4/blob/master/doc/raspbian.md#usb-boot-aktivieren) auszuführen.
+Für das booten von ssd muss ggf. die Firmware im eeprom aktualisiert werden. Bei meinem Raspberry Pi 4 B von November 2020 war diese bereits auf dem notwendigen Stand. Es hätte also ausgereicht, nur den Abschnitt **USB boot aktivieren** in [Raspbian](https://github.com/hajo62/RPi4/blob/master/doc/raspbian.md#usb-boot-aktivieren) auszuführen.
 
 Es gibt viele Bescheibungen; zuletzt bin ich dieser [Beschreibung](https://www.pragmaticlinux.com/2020/08/move-the-raspberry-pi-root-file-system-to-a-usb-drive/) gefolgt und habe folgende Schritte ausgeführt:
 
@@ -209,6 +209,8 @@ sudo apt install make               # Zum Software bauen
 sudo apt install net-tools          # Für netstat
 sudo apt-get install openssh-client # Wird für VisualStudio Code remote Edit benötigt
 sudo apt install npm                # Z.B: zum bauen des homeetomqtt-Images
+sudo apt-get install cifs-utils     # Zum mounten von NAS drives
+sudo apt-get install keyutils       # Für den Zugriff auf den keyring
 
 # sudo apt install gitsome    # Für github
 
