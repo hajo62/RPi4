@@ -60,6 +60,13 @@ docker images
 docker rmi <IMAGE ID>
 ```
 
+### 👉 Alternativer Installationsweg
+Tipp von einem Kollegen: 
+```
+curl -sSL https://get.docker.com | sh
+sudo usermod -aG docker <user>
+```
+
 ## docker-compose
 Eine Bescheibung der Installation von docker-compose steht [hier](https://docs.docker.com/compose/install/  ). 
 Leider ist dort aber kein Download für den RPi vefügbar, so dass man sich die Software selbst bauen muss.
