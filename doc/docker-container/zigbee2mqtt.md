@@ -106,7 +106,7 @@ Um die Xiaomi-Devices mit dem neuen Zigbee-Coordinator zu pairen, muss der Knopf
 ---
 
 ## Notwendige Hardware
-- [CC2531 Zigbee Sniffer](...): ca. 9 € - Darauf achten, dass der Stick die Debug-Pins zum anstecken des Kabels hat.
+- [CC2531 Zigbee Sniffer](#notwendige-hardware): ca. 9 € - Darauf achten, dass der Stick die Debug-Pins zum anstecken des Kabels hat.
 - [CC-Debugger](https://rover.ebay.com/rover/1/711-53200-19255-0/1?icep_id=114&ipn=icep&toolid=20004&campid=5338436153&mpre=https%3A%2F%2Fwww.ebay.com%2Fsch%2Fi.html%3F_from%3DR40%26_trksid%3Dm570.l1313%26_nkw%3DCC%2BDebugger%26_sacat%3D0%26LH_TitleDesc%3D0%26_osacat%3D0%26_odkw%3DCC2531%2Bgeh%25C3%25A4use%26LH_TitleDesc%3D0): ca. 9 €
 - [Downloader-Kabel](https://rover.ebay.com/rover/1/711-53200-19255-0/1?icep_id=114&ipn=icep&toolid=20004&campid=5338436153&mpre=https%3A%2F%2Fwww.ebay.com%2Fsch%2Fi.html%3F_from%3DR40%26_trksid%3Dm570.l1313%26_nkw%3DBluetooth%2B4.0%2Bzigbee%2Bdownloader%2Bcable%26_sacat%3D0%26LH_TitleDesc%3D0%26_osacat%3D0%26_odkw%3DBluetooth%2B4.0%2Bzigbee%2Bcable%26LH_TitleDesc%3D0): ca. 2 €
 - Und als ersten Sensor probiere ich den [Xiaomi Aqara](https://rover.ebay.com/rover/1/711-53200-19255-0/1?icep_id=114&ipn=icep&toolid=20004&campid=5338436153&mpre=https%3A%2F%2Fwww.ebay.com%2Fsch%2Fi.html%3F_from%3DR40%26_trksid%3Dm570.l1313%26_nkw%3DXiaomi%2BAqara%2Btemperature%2Bhumidity%26_sacat%3D0%26LH_TitleDesc%3D0%26_osacat%3D0%26_odkw%3DXiaomi%2BAqara%2Btemperature%26LH_TitleDesc%3D0) für Temperatur, Luftdruck und Feuchtigkeit: ca. 10,50 €
