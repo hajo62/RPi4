@@ -65,7 +65,7 @@ Mit dem Kommando `docker-compose pull mariadb` wird das Image heruntergeladen un
 
 
 
-## Seurity
+## Security
 Diese Meldung kam beim ersten Start:
 > PLEASE REMEMBER TO SET A PASSWORD FOR THE MariaDB root USER !
 To do so, start the server, then issue the following command:
