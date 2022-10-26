@@ -60,3 +60,16 @@ Mit dem Kommando `docker-compose pull mariadb` wird das Image heruntergeladen un
 
 ## *Datenbank-Browser*
 [Hier](https://dbeaver.io/) gibt es **DBeaver**, ein universelles Datenbank-Management-Tool für viele populäre Datenbanken. Damit kann man einen Blick in die Datenbank werfen und ich habe auch schon mal _falsche_ Werte gelöscht.
+
+
+
+
+
+## Seurity
+Diese Meldung kam beim ersten Start:
+> PLEASE REMEMBER TO SET A PASSWORD FOR THE MariaDB root USER !
+To do so, start the server, then issue the following command:
+```
+/usr/bin/mysql_secure_installation
+```
+> which will also give you the option of removing the test  databases and anonymous user created by default.  This is strongly recommended for production servers.
