@@ -9,7 +9,7 @@ Aus diesem [Blog](https://www.wouterbulten.nl/blog/tech/home-automation-setup-do
 Hier der entsprechende Teil meiner `docker-compose.yaml`:  
 
 ```
-version: '3.7'
+version: '3.8'
 services:
   mariadb:
     image: tobi312/rpi-mariadb
@@ -30,11 +30,11 @@ services:
 Oder besser die Kennworte in die Datei `˜/.env` eintragen und hier referenzieren:
 
 ```
-version: '3.7'
+version: '3.8'
 services:
-  mariadb:
-    image: tobi312/rpi-mariadb
-    container_name: mariadb
+  homeassistant-db:
+    image: mariadb
+    container_name: homeassistant-db
     restart: unless-stopped
     volumes:
       - /home/hajo/docker-volumes/mariadb:/var/lib/mysql
