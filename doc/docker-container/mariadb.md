@@ -9,7 +9,7 @@ Aus diesem [Blog](https://www.wouterbulten.nl/blog/tech/home-automation-setup-do
 Hier der entsprechende Teil meiner `docker-compose.yaml`:  
 
 ```
-version: '3.8'
+version: '3.7'
 services:
   mariadb:
     image: tobi312/rpi-mariadb
@@ -27,7 +27,7 @@ services:
       - 3306:3306
 ````
 
-Oder besser die Kennworte in die Datei `˜/.env` eintragen und hier referenzieren:
+Oder besser die Kennworte in die Datei `˜/.env` eintragen und hier _nur_ referenzieren. Außerdem habe ich nun noch auf das Docker Official Image umgestellt:
 
 ```
 version: '3.8'
