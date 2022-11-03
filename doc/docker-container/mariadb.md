@@ -55,8 +55,18 @@ services:
 
 Mit dem Kommando `docker-compose pull mariadb` wird das Image heruntergeladen und mit `docker-compose up [-d] mariadb` gestartet.
 
+
 ## Konfiguration
--- keine Notizen gemacht --
+-- Leider keine Notizen gemacht --  
+Aber [hier](https://www.nickneos.com/2020/09/14/migrating-home-assistant/) findet sich dazu einiges.
+
+
+## Version checken
+Dazu im Container das Kommando `mariadb -V` ausführen:
+```
+docker exec homeassistant-db mariadb -V
+```
+
 
 ## *Datenbank-Browser*
 [Hier](https://dbeaver.io/) gibt es **DBeaver**, ein universelles Datenbank-Management-Tool für viele populäre Datenbanken. Damit kann man einen Blick in die Datenbank werfen und ich habe auch schon mal _falsche_ Werte gelöscht.
