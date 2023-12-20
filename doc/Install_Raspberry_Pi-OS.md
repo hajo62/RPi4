@@ -56,6 +56,9 @@ Das eeprom und die Firmware des Pi ist nun aktualisiert und dieser kann nun von 
 
 
 ---
+
+
+## Alte Aufzeichnungs-Schnippsel
 Ab hier Aufzeichnungsreste für das booten von Raspbian Pi OS von ssd-Karte.
 
 

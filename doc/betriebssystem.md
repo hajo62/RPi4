@@ -1,4 +1,153 @@
 # Betriebssystem installieren
+## Enable USB Boot
+[Hier](https://www.raspberrypi.com/software/) gibt es den **Raspberry Pi Imager**. Mit diesem kann verschieden Betriebssystem für den Raspberry Pi auf SD-Karte _brennen_ und zumindest seit Version v1.7 auch die booten von USB aktivieren.
+
+Dazu wählt man `Misc Utility images > Bootloader > USB Boot`. Im nächsten Schritt mit `Choose Storage` und großer Vorsicht die SD-Karte - deren Inhalt man ggf. zuvor wie [hier](#sichern-des-inhalts-einer-sd-karte) beschrieben gesichert hat - auswählen. Ggf. über den Einstellungsbutton noch eine Rechnernamen vergeben, username und passwort setzen und SSH-login ermöglichen.
+
+Nun habe ich den Pi mit dieser SD-Karte gebootet und ein paar Minuten gewartet, bevor ich den Pi ausgeschaltet und die SD-Karte wieder entfernt habe. 
+
+
+## ubuntu installieren
+Da ubuntu 20.04 LTS USB-boot noch nicht unterstützt, `brenne` ich das  **ubuntu 21.10**-Image auf die neue leere ssd-Platte. Dann die Platte einfach an den Pi hängen und zur Sicherheit nochmal prüfen, dass auch keine SD-Karte mehr eingesteckt ist. Einschalten und schon bootet der Pi von der USB-Disk.
+
+Nun ist es an der Zeit, das initiale Setup abzuschließen.
+
+
+## Betriebssystem aktualisieren
+```
+sudo apt-get update
+sudo apt-get upgrade
+# ggf...
+sudo apt-get dist-upgrade
+```
+Zwischendurch wurde ich nach `Packagae configuration` gefragt. Da unwissend, habe ich nichts verstellt und mit OK bestätigt.
+
+### one-click-Betriebssystem-Aktualisierung
+Um das Update ohne Rückfrage - soll installiert werden? oder Soll dieser Service restarted werden? - auszuführen, setzt man eine Umgebungsvariable und führt die Kommandos mit der `-y`-Option aus:
+```
+export DEBIAN_FRONTEND=noninteractive
+
+sudo apt update; sudo apt upgrade -y; sudo apt autoremove -y; /usr/lib/update-notifier/apt-check > /home/hajo/docker-volumes/homeassistant/OS_updates.out 2>&1
+```
+
+## Zeitzone, Zeitsynchronisation, hostname und username
+Diese Werte hatte ich gleich beim _brennen_ der ssd-Platte eingestellt. Falls doch noch Änderungen notwendig sind.  
+Zeitzone: Siehe [hier](#zeitzone)  
+Zeitsynchronisation: [hier](#Zeitsynchronisation)  
+Hostname: [hier](#hostname-ändern)  
+USername: [hier](#username-ändern)  
+
+
+## Nützliche Pakete
+```
+sudo apt install make               # Zum Software bauen
+sudo apt install net-tools          # Für netstat
+sudo apt-get install openssh-client # Wird z.B. für VisualStudio Code remote Edit benötigt
+sudo apt install npm                # Z.B: zum bauen des homeetomqtt-Images
+sudo apt-get install cifs-utils     # Zum mounten von NAS drives
+sudo apt-get install keyutils       # Für den Zugriff auf den keyring
+sudo apt-get install autofs         # Automatische mounten von Partitionen
+sudo apt install gitsome            # Für github
+sudo apt-get install nfs-kernel-server
+sudo apt-get install samba          # Für Samba-Freigaben
+sudo apt install smbclient          # Samba Client
+
+```
+oder hier als ein Kommando:
+```
+sudo apt install make  net-tools  openssh-client  npm  cifs-utils  keyutils  autofs  gitsome  nfs-kernel-server samba smbclient
+```
+
+## Entfernen der cloud-init Pakete
+Diese Pakete hindern einen daran, _einfach_ z.B. den `hostname` zu ändern oder die `/etc/hosts` permanen zu ändern. Deshalb habe ich diese Funktionalität - wie [hier](https://www.networkreverse.com/2020/06/how-to-remove-cloud-init-from-ubuntu.html) beschreiben - entfernt.
+```
+touch /etc/cloud/cloud-init.disabled
+```
+Und dann reboot.  
+Anschließend evtl. noch die zugehörigen Pakete und den Ordner `/etc/cloud` entfernen:
+```
+sudo apt purge cloud-init -y
+sudo rm -Rf /etc/cloud
+```
+
+## swap-file anlegen
+Für ubuntu wird z.B. [hier](https://websetnet.net/de/how-much-swap-should-you-use-in-linux/) bei mehr als 1 GB RAM eine Größe von mehr als Wurzel des installierten Hauptspeichers empfohlen. Ich nehme 4 GB als Swapfile-Größe.
+```
+# Anlegen der Datei.
+sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
+# Zugriff nur für root
+sudo chmod 0600 /swapfile
+# Formatieren des Swapfiles
+sudo mkswap /swapfile 
+# Swap aktivieren
+sudo swapon /swapfile 
+```
+Damit das Swapfile auch nach dem nächsten booten noch genutzt wird, muss die folgende Zeile in die datei `/etc/fstab` eingetragen werden:
+``` 
+/swapfile    none    swap    sw      0 0
+```
+Nun noch einstellen, dass nicht zu früh auf Disk ausgelagert wird.
+```
+# Swappiness anzeigen
+sysctl vm.swappiness 
+# Swappiness einstellen - bis zum nächsten reboot
+sysctl vm.swappiness=10
+# Swappiness einstellen - nach reboot
+sudo bash -c "echo 'vm.swappiness = 15' >> /etc/sysctl.conf"
+```
+
+
+## Für das argon case
+https://docs.rs-online.com/8591/A700000007741988.pdf
+https://github.com/jens-maus/RaspberryMatic/issues/863
+
+
+---
+Bei Zeiten mal nachlesen, ob hier noch was nützliches dabei ist:  
+http://raspberry.tips/raspberrypi-tutorials/raspberry-pi-performance-tuning-und-tweaks
+
+https://www.proudcommerce.com/devops/buero-dashboard-mit-raspberry-pi-co2-sensor-und-grafana
+
+
+## Sichern des Inhalts einer SD-Karte
+Hier auf dem Mac:
+
+### Welche Disk ist die SD-Karte?
+```
+$ diskutil list
+...
+/dev/disk2 (external, physical):
+   #:                       TYPE NAME                    SIZE       IDENTIFIER
+   0:     FDisk_partition_scheme                        *31.9 GB    disk2
+   1:             Windows_FAT_32 system-boot             268.4 MB   disk2s1
+   2:                      Linux                         31.6 GB    disk2s2
+```
+
+### Sichern der gesamten SD-Karte
+```
+sudo dd bs=4m if=/dev/disk2 | gzip > ~/Desktop/rpi3B-image.gz
+```
+Dauert ein Weilchen...  
+👉 `ctrl+t` zeigt an, wieviel bereits geschrieben wurde.
+
+### Wiederherstellen der gesamten SD-Karte aus der Sicherung
+
+```
+diskutil umountDisk /dev/disk2
+
+# Formatieren wir die SD-Karte im FAT16 Format
+sudo newfs_msdos -F 16 /dev/disk2
+
+# Sicherung wiederherstellen
+sudo gzip -dc ~/Desktop/rpi3B-image.gz | sudo dd bs=4m of=/dev/disk2
+```
+
+
+
+
+---
+# Hinweise von den vorherigen Installationen (auf die oben zum Teil verwiesen wird)
+## Mit externer ssd
 Meinen ersten Raspberry 3B+ habe ich im November 2018 mit [Raspbian Stretch with desktop](https://www.raspberrypi.org/downloads/raspbian), weil es zu dem Zeitpunkt noch kein ubuntu-Image gab. Da es inzwischen - November 2020 - ein offizielle ubuntu-Images für den Raspberry-Pi gibt, versuche ich es nun mit mit **ubuntu 20.04** LTS.
 
 Außerdem möchte ich das Betriebssystem von einer ssd-Platte booten, da mir in 2 Jahren bereits 2 SD-Karten _gestorben_ sind. Dazu muss aber das eeprom und die Firmware des Raspberry Pis aktualisert werden. Dies geht wohl mit mit Raspberry Pi OS, so dass dieses kurzzeitig auf der SD-Karte installiert werden muss. Wie **Raspberry Pi OS** installiert wird, habe ich - bis auf das im nächsten Abschnitt beschriebene Flashen der SD-Karte - [hier](./Install_Raspberry_Pi-OS.md) beschrieben.
@@ -133,25 +282,19 @@ sudo lsblk -p | grep "disk\|part"
 └─/dev/mmcblk0p2 179:2    0  59.4G  0 part 
 ```
 
-Nun ist es an der Zeit, das initiale Setup abzuschließen.
 
-## Betriebssystem aktualisieren
-```
-sudo apt-get update
-sudo apt-get upgrade
-```
 
-## Zeitzone und Zeitsynchronisation
 ### Zeitzone
-Nach dem upgrade erschien die Meldung:
+Während des upgrade erschien die Meldung:
 ```
-Current default time zone: 'Etc/UTC'
-Local time is now:      Sun Nov  1 14:33:49 UTC 2020.
-Universal Time is now:  Sun Nov  1 14:33:49 UTC 2020.
+Current default time zone: 'Europe/Berlin'
+Local time is now:      Tue Feb 22 23:34:30 CET 2022.
+Universal Time is now:  Tue Feb 22 22:34:30 UTC 2022.
 Run 'dpkg-reconfigure tzdata' if you wish to change it.
 ```
 
-Diesem Hinweis bin ich gefolgt. Bei ubuntu 20.10 habe ich das schon mal mit nachfolgendem Befehl gemacht:
+Diesem Hinweis bin ich gefolgt.  
+Bei ubuntu 20.10 habe ich das schon mal mit nachfolgendem Befehl gemacht:
 ```
 sudo timedatectl set-timezone Europe/Berlin
 ``` 
@@ -203,20 +346,3 @@ sudo service ssh restart
 > Ich bin mir nicht sicher, ob der user `ubuntu` ein `sudo` ohne Kennworteingabe machen konnte, oder nicht. Der umbenannte User kann das jedenfalls nicht mehr!
 
 
-## Nützliche Pakete
-```
-sudo apt install make               # Zum Software bauen
-sudo apt install net-tools          # Für netstat
-sudo apt-get install openssh-client # Wird für VisualStudio Code remote Edit benötigt
-sudo apt install npm                # Z.B: zum bauen des homeetomqtt-Images
-sudo apt-get install cifs-utils     # Zum mounten von NAS drives
-sudo apt-get install keyutils       # Für den Zugriff auf den keyring
-
-# sudo apt install gitsome    # Für github
-
-```
-
-Bei Zeiten mal nachlesen, ob hier noch was nützliches dabei ist:  
-http://raspberry.tips/raspberrypi-tutorials/raspberry-pi-performance-tuning-und-tweaks
-
-https://www.proudcommerce.com/devops/buero-dashboard-mit-raspberry-pi-co2-sensor-und-grafana
