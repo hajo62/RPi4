@@ -1,6 +1,7 @@
 # Samba
 Damit ich von meiner Panasonic-Kamera Bilder per WLAN auf meinem RPi / in mein Nextcloud übertragen kann, benötige ich einen Samba-Share. Wenn Bilder übertragen werden sollen, starte ich kurz den Container, übertrage die Bilder und stoppe den Container anschließend wieder. So muss ich mich nicht wikrlich um Security kümmern.
 
+
 Info:  
 * https://hub.docker.com/r/servercontainers/samba  
 * https://blog.pistack.co.za/samba-server-on-raspberry-pi-with-docker/
