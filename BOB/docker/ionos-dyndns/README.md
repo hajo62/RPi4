@@ -13,6 +13,21 @@ Dieses Script ruft die **öffentliche IPv4-Adresse** direkt von der **FRITZ!Box*
 
 ---
 
+## Sicherheitshinweis: Container läuft als root
+
+Der Container läuft bewusst als **root** (uid=0). Das ist für diesen Use-Case **kein Sicherheitsproblem**, weil:
+
+- ✅ Keine exponierte Angriffsfläche (keine Ports nach außen)
+- ✅ Nur vertrauenswürdige Kommunikation (FRITZ!Box lokal, IONOS API HTTPS)
+- ✅ Docker-Isolation schützt den Host
+- ✅ Minimale Funktionalität (nur HTTP-Requests und JSON-Datei)
+- ✅ Benötigt für CrowdSec-Integration (sudo-Aufruf)
+
+**Alternative:** Non-root User würde die CrowdSec-Integration komplizieren ohne echten Sicherheitsgewinn.
+
+
+---
+
 ## Voraussetzungen
 
 1. **FRITZ!Box**  
@@ -30,7 +45,7 @@ Dieses Script ruft die **öffentliche IPv4-Adresse** direkt von der **FRITZ!Box*
   ```bash
 curl -X 'POST' 'https://api.hosting.ionos.com/dns/v1/dyndns' \
 -H 'accept: application/json' \
--H 'X-API-Key: 09a11c904a274bb09b12f51d916ebe4b.RRH7CraVw1wJ02j3Oh5dBmY4YWKK5bBo18vhVGLizg1YWqHZSpLlSbQ9rk7nq0lGOcmYnZQ0EU59h5NipB2WoQ' \
+-H 'X-API-Key: YOUR_API_KEY_HERE' \
 -H 'Content-Type: application/json' \
 -d '{
 "domains": [
