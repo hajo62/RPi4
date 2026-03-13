@@ -1,0 +1,50 @@
+# ============================================
+# Traefik Dynamic Configuration - Home Assistant
+# ============================================
+#
+# Home Assistant auf Pi4 über Nginx (192.168.178.3:80)
+#
+# Setup:
+#   Traefik (Pi5) → Nginx (Pi4:80) → Home Assistant (Pi4:8123)
+#
+# Erreichbar über:
+#   - ha.hajo63.de (Ionos Domain)
+#   - ha.hajo62.duckdns.org (DuckDNS Domain)
+#
+# Nginx auf Pi4 bietet zusätzliche Absicherung:
+#   - WebSocket-Unterstützung
+#   - Timeout-Konfiguration
+#   - Header-Verwaltung
+#
+# ============================================
+
+http:
+  # ============================================
+  # Routers
+  # ============================================
+  routers:
+    # Home Assistant
+    ha:
+      rule: "Host(`ha.hajo63.de`) || Host(`ha.hajo62.duckdns.org`)"
+      entryPoints:
+        - websecure
+      service: pi4-nginx
+      middlewares:
+        - rate-limit-standard@file  # 1. Rate Limit: verhindert DoS, schützt GeoIP-API
+        - geoblock-de@file          # 2. GeoIP: blockiert nicht-DE-IPs
+        - secure-headers@file       # 3. Security Headers setzen
+      tls:
+        options: tls-modern
+
+  # ============================================
+  # Services
+  # ============================================
+  services:
+    # Pi4 Nginx Backend (leitet zu Home Assistant weiter)
+    pi4-nginx:
+      loadBalancer:
+        passHostHeader: true
+        servers:
+          - url: "http://192.168.178.3:80"
+
+# Made with Bob

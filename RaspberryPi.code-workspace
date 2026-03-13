@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"pasteImage.path": "${projectRoot}/images",
+		"pasteImage.basePath": "${projectRoot}",
+		"pasteImage.forceUnixStyleSeparator": true,
+		"pasteImage.prefix": "/",
+		"workbench.editor.alwaysShowEditorActions": true
+
+
+	}
+}

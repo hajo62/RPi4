@@ -1,0 +1,111 @@
+# ============================================
+# CrowdSec - Kollaborative IPS/IDS Lösung
+# ============================================
+#
+# CrowdSec analysiert Logs und blockiert böse IP-Adressen
+# über die Firewall (iptables/nftables).
+#
+# Komponenten:
+# - crowdsec: Hauptservice (Log-Analyse, Entscheidungen)
+# - crowdsec-firewall-bouncer: Firewall-Integration (nftables)
+#
+# Verwendung:
+#   docker compose up -d              # Services starten
+#   docker compose logs -f crowdsec   # Logs anzeigen
+#   docker compose exec crowdsec cscli decisions list  # Geblockte IPs
+#
+# ============================================
+
+services:
+  # ============================================
+  # CrowdSec Hauptservice
+  # ============================================
+  crowdsec:
+    image: crowdsecurity/crowdsec:latest
+    container_name: crowdsec
+    restart: unless-stopped
+    
+    environment:
+      # Zeitzone
+      - TZ=Europe/Berlin
+      
+      # Collections (Regelsets)
+      # Basis-Collections werden automatisch installiert
+      # Erweiterte Scenarios werden via install-scenarios.sh installiert
+      - COLLECTIONS=crowdsecurity/linux crowdsecurity/sshd crowdsecurity/nginx crowdsecurity/traefik crowdsecurity/http-cve
+      
+      # Bouncer API Key wird automatisch generiert
+      - BOUNCER_KEY_firewall=${BOUNCER_KEY_FIREWALL:-}
+      
+      # Optional: CrowdSec Central API (für Community-Intelligence)
+      # Registrierung: https://app.crowdsec.net
+      # - ENROLL_KEY=your_enroll_key_here
+      # - ENROLL_INSTANCE_NAME=rpi5-traefik
+      # - ENROLL_TAGS=raspberry-pi,traefik,home-server
+    
+    volumes:
+      # Konfiguration
+      - ./config:/etc/crowdsec:rw
+      
+      # Datenbank (Entscheidungen, Metriken)
+      - ./db:/var/lib/crowdsec/data:rw
+      
+      # Log-Dateien zum Analysieren (via rsyslog)
+      # WICHTIG: rsyslog muss auf dem Host installiert sein!
+      # sudo apt install rsyslog && sudo systemctl enable rsyslog && sudo systemctl start rsyslog
+      - /var/log/auth.log:/var/log/auth.log:ro
+      - /var/log/syslog:/var/log/syslog:ro
+      
+      # Traefik Logs
+      - /home/hajo/docker/traefik/logs:/var/log/traefik:ro
+      
+      # nginx Logs vom Pi4 (via NFS mount)
+      # - /mnt/pi4-logs/nginx:/var/log/nginx:ro
+    
+    networks:
+      - crowdsec-net
+    
+    # Ports für Prometheus Metrics (optional)
+    # ports:
+    #   - "6060:6060"
+    
+    labels:
+      # Watchtower: Auto-Updates aktivieren
+      - "com.centurylinklabs.watchtower.enable=true"
+      
+      # What's Up Docker: Überwachung aktivieren
+      - "wud.watch=true"
+      - "wud.tag.include=^\\d+\\.\\d+\\.\\d+$$"
+      - "wud.display.name=CrowdSec"
+      - "wud.display.icon=si:crowdsec"
+    
+    # Ports für API (für Bouncer-Zugriff)
+    ports:
+      - "8080:8080"
+
+  # ============================================
+  # HINWEIS: Firewall Bouncer
+  # ============================================
+  # Der Firewall Bouncer muss auf dem Host installiert werden,
+  # da es kein offizielles Docker Image gibt.
+  #
+  # Installation auf dem Host:
+  # 1. curl -s https://packagecloud.io/install/repositories/crowdsec/crowdsec/script.deb.sh | sudo bash
+  # 2. sudo apt install crowdsec-firewall-bouncer-nftables
+  # 3. sudo nano /etc/crowdsec/bouncers/crowdsec-firewall-bouncer.yaml
+  #    - api_url: http://localhost:8080
+  #    - api_key: <API_KEY aus cscli bouncers add>
+  # 4. sudo systemctl enable crowdsec-firewall-bouncer
+  # 5. sudo systemctl start crowdsec-firewall-bouncer
+  #
+  # Siehe INSTALLATION-HOST-BOUNCER.md für Details
+
+# ============================================
+# Netzwerke
+# ============================================
+networks:
+  crowdsec-net:
+    name: crowdsec-net
+    driver: bridge
+
+# Made with Bob

@@ -1,0 +1,100 @@
+http:
+  routers:
+    ha:
+      rule: "Host(`ha.hajo63.de`) || Host(`ha.hajo62.duckdns.org`)"
+      entryPoints: ["websecure"]
+      service: pi4
+      middlewares:
+        - geoblock-de
+        - crowdsec
+        - secure-headers
+      tls:
+        options: tls-modern
+
+    nc:
+      rule: "Host(`nc.hajo63.de`) || Host(`nc.hajo62.duckdns.org`)"
+      entryPoints: ["websecure"]
+      service: pi4
+      middlewares:
+        - geoblock-de
+        - crowdsec
+        - secure-headers
+      tls:
+        options: tls-modern
+
+    pg:
+      rule: "Host(`pg.hajo63.de`) || Host(`pg.hajo62.duckdns.org`)"
+      entryPoints: ["websecure"]
+      service: pi4
+      middlewares:
+        - geoblock-de
+        - crowdsec
+        - secure-headers
+      tls:
+        options: tls-modern
+
+  services:
+    pi4:
+      loadBalancer:
+        passHostHeader: true
+        servers:
+          - url: "http://192.168.178.3:80"
+
+  middlewares:
+    geoblock-de:
+      plugin:
+        geoblock:
+          blackListMode: false
+          allowLocalRequests: true
+          allowUnknownCountries: true
+          api: "https://get.geojs.io/v1/ip/country/{ip}"
+          apiTimeoutMs: 1500
+          cacheSize: 50
+          forceMonthlyUpdate: true
+          countries:
+            - DE
+
+
+    crowdsec:
+      plugin:
+        crowdsec-bouncer:
+          # Minimal & korrekt nach Plugin-Doku:
+          crowdsecMode: "live"
+          crowdsecLapiScheme: "http"
+          crowdsecLapiHost: "crowdsec:8080"
+          crowdsecLapiKey: '{{ env "CROWDSEC_TRAEFIK_BOUNCER_API_KEY" }}'
+
+          # (Vorübergehend ALLES entfernen, was anders heißt oder nicht in der Doku steht,
+          # z. B. crowdsecLapiPort, DefaultDecisionDurationSeconds, FallbackAction/EnableFallback)
+
+
+
+
+    secure-headers:
+      headers:
+        stsSeconds: 63072000
+        stsIncludeSubdomains: true
+        stsPreload: true
+        frameDeny: true
+        contentTypeNosniff: true
+        browserXssFilter: true
+        referrerPolicy: strict-origin-when-cross-origin
+
+tls:
+  certificates:
+    - certFile: /certs/fullchain.pem
+      keyFile: /certs/privkey.pem
+    - certFile: /certs/hajo62/fullchain.cer
+      keyFile: /certs/hajo62/hajo62.duckdns.org.key
+
+  options:
+    tls-modern:
+      minVersion: VersionTLS12
+      sniStrict: true
+      cipherSuites:
+        - TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
+        - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+        - TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+        - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+        - TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305
+        - TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305

@@ -1,0 +1,29 @@
+version: "3.8"
+services:
+  ionos-dyndns:
+    container_name: ionos-dyndns
+    image: alpine:3.19
+    env_file: .env
+    environment:
+      - UPDATE_URL=${UPDATE_URL}
+      - INTERVAL_SECONDS=${INTERVAL_SECONDS}
+      - TZ=${TZ:-Europe/Berlin}  # optional fallback
+    volumes:
+      - ./scripts:/app
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro   # optional, falls vorhanden
+    # entrypoint: ["/bin/sh", "/app/update_dyndns.sh"]
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        # 1) tzdata installieren für korrekte Zeitzone
+        apk add --no-cache tzdata \
+        && chmod +x /app/update_dyndns.sh \
+        && exec /app/update_dyndns.sh
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10k"
+        max-file: "2"
+    restart: unless-stopped

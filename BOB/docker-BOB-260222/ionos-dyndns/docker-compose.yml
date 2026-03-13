@@ -1,0 +1,73 @@
+services:
+  ionos-dyndns:
+    container_name: ionos-dyndns
+    image: alpine:3.23
+    
+    # DNS: FRITZ!Box für lokale Auflösung + Cloudflare für Internet
+    dns:
+      - 192.168.178.1  # FRITZ!Box (für fritz.box Auflösung)
+      - 1.1.1.1        # Cloudflare (für IONOS DynDNS-Server)
+    
+    # Netzwerk: proxy für Konsistenz mit anderen Services
+    networks:
+      - proxy
+    
+    labels:
+      - "wud.watch=true"
+    
+    env_file: .env
+    
+    environment:
+      - UPDATE_URL=${UPDATE_URL}
+      - INTERVAL_SECONDS=${INTERVAL_SECONDS}
+      - TZ=${TZ:-Europe/Berlin}
+
+    # Resource Limits
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'      # Max 25% einer CPU
+          memory: 64M       # Max 64 MB RAM
+        reservations:
+          cpus: '0.05'      # Min 5% einer CPU
+          memory: 16M       # Min 16 MB RAM
+    
+    volumes:
+      # Scripts read-only mounten (Best Practice)
+      - ./scripts:/app/scripts:ro
+      # Dediziertes Volume für State-Daten
+      - ./data:/app/data
+      # Zeitzone
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+    
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        # tzdata und wget installieren
+        apk add --no-cache tzdata wget \
+        && exec /bin/sh /app/scripts/update_dyndns.sh
+    
+    # Health-Check: Prüft ob das update_dyndns.sh Script läuft
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "update_dyndns.sh"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10k"
+        max-file: "2"
+    
+    restart: unless-stopped
+
+# Netzwerk-Definition für lokales Testen
+networks:
+  proxy:
+    external: true  # Nutzt zentral definiertes Netzwerk
+
+# Made with Bob

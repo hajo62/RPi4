@@ -1,0 +1,107 @@
+# ============================================
+# Attack Dashboard
+# ============================================
+#
+# Browser-Dashboard für Angriffs-Übersicht:
+#   - HTTP-Angriffe aus Traefik Access Log
+#   - CrowdSec Bans (via LAPI REST API)
+#   - SSH Brute-Force aus auth.log
+#   - Direct-IP Hits (Scanner ohne Hostname)
+#   - GeoIP-Auflösung + Weltkarte
+#
+# Zugriff: http://192.168.178.55:8095
+#
+# Voraussetzungen:
+#   - Traefik schreibt JSON Access Log nach /home/hajo/docker/traefik/logs/access.json
+#   - rsyslog schreibt /var/log/auth.log
+#   - CrowdSec LAPI läuft auf Port 8080 (crowdsec-net)
+#   - CROWDSEC_KEY in .env gesetzt (cscli bouncers add attack-dashboard)
+#
+# ============================================
+
+services:
+  attack-dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: attack-dashboard
+    restart: unless-stopped
+
+    # Ressourcen-Limits (GeoIP-Lookups können kurz CPU-intensiv sein)
+    cpus: "0.5"
+    mem_limit: "256m"
+    pids_limit: 64
+
+    security_opt:
+      - no-new-privileges:true
+
+    environment:
+      - TZ=Europe/Berlin
+
+      # Traefik Access Log (JSON-Format)
+      # Muss mit dem Volume-Mount übereinstimmen
+      - TRAEFIK_LOG=/logs/traefik/access.json
+
+      # SSH Auth Log
+      - AUTH_LOG=/logs/auth.log
+
+      # CrowdSec LAPI
+      # URL: crowdsec-Container im crowdsec-net Netzwerk
+      - CROWDSEC_URL=http://crowdsec:8080
+      # API Key: docker compose exec crowdsec cscli bouncers add attack-dashboard
+      - CROWDSEC_KEY=${CROWDSEC_KEY:-}
+
+      # Verhalten
+      - FULL_SCAN=1              # Beim Start gesamtes Log einlesen (historische Daten)
+      - SHOW_IPS=true            # IPs im Dashboard anzeigen (false = anonymisieren)
+      - BLOCK_STATUS=403,451     # Diese HTTP-Status-Codes als "geblockt" werten
+      - PORT=8095
+
+      # GeoIP-Fallback-Kette (kostenlose APIs, kein API-Key nötig)
+      - GEO_URLS=https://ipwho.is/{ip},http://ip-api.com/json/{ip}?fields=status,countryCode,country,lat,lon,message,https://ipinfo.io/{ip}/json,https://get.geojs.io/v1/ip/geo/{ip}.json
+      - GEO_TIMEOUT=3
+
+    volumes:
+      # Quellcode (direkt gemountet → Änderungen ohne Rebuild wirksam nach "docker compose restart")
+      - /home/hajo/docker/attack-dashboard/server.py:/app/server.py:ro
+      # static/ als rw damit server.py world.geojson beim Start herunterladen kann
+      # (world.geojson wird beim ersten Start automatisch geladen falls nicht vorhanden)
+      - /home/hajo/docker/attack-dashboard/static:/app/static:rw
+
+      # Traefik Access Log (read-only)
+      - /home/hajo/docker/traefik/logs:/logs/traefik:ro
+
+      # SSH Auth Log (read-only)
+      - /var/log/auth.log:/logs/auth.log:ro
+
+    ports:
+      # Nur LAN-Zugriff (nftables blockiert externen Zugriff)
+      - "8095:8095"
+
+    networks:
+      # CrowdSec-Netzwerk für LAPI-Zugriff
+      - crowdsec-net
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+    labels:
+      # What's Up Docker
+      # wud.watch=true damit der Container in der WUD-UI sichtbar ist.
+      # Da es ein lokaler Build ist (kein Registry-Image), findet WUD keine Updates –
+      # der Container erscheint aber in der Übersicht mit Status "unknown".
+      - "wud.watch=true"
+      - "wud.display.name=Attack Dashboard"
+      - "wud.display.icon=si:shield"
+
+# ============================================
+# Netzwerke
+# ============================================
+networks:
+  crowdsec-net:
+    external: true
+
+# Made with Bob

@@ -1,0 +1,758 @@
+# version: '3.9'
+# Für Banner: https://helloacm.com/banner
+# 
+# ÜBERGANGSPHASE: nginx (hajo62.duckdns.org) + Traefik-Vorbereitung (hajo63.de)
+# 
+# Ports: 
+#   443 nginx (hajo62.duckdns.org)
+#  1883 Mosquitto
+#  3000 Z-Wave JS Server
+#  3306 Homeassistant MariaDB
+#  3307 Nextcloud MariaDB
+#  3310 Pigallery2 MariaDB
+#  3311 PhotoPrism MariaDB
+#  3312 Pigallery3 MariaDB
+#  6379 redis
+#  8001 Pigallery2
+#  8002 Pigallery3
+#  8082 zigbee2mqtt web frontend
+#  8088 Nextcloud
+#  8091 Z-Wave JS Server -  WebUI
+#  8123 Home Assistant
+#  9001 Mosquitto
+
+services:
+
+  ##################################################
+  # Homeassistant
+  ##################################################
+  homeassistant:
+    privileged: true
+#    image: ghcr.io/home-assistant/home-assistant:stable
+    image: ghcr.io/home-assistant/home-assistant:v2026.02.3
+    container_name: homeassistant
+    depends_on:
+      homeassistant-db:
+        condition: service_healthy
+    deploy:
+        resources:
+            limits:
+              memory: 2048M
+    volumes:
+      - /home/hajo/docker-volumes/homeassistant:/config
+      - /etc/localtime:/etc/localtime:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /run/dbus:/run/dbus:ro
+      - /home/hajo/docker-volumes/LetsEncrypt/certs/hajo62.duckdns.org/:/etc/letsencrypt/
+      - /home/hajo/docker-volumes/nextcloud/data:/nextcloud:ro
+    devices:
+      - /dev/ttyUSB0:/dev/ttyUSB0
+    # WICHTIG: Für Traefik-Vorbereitung network_mode: host entfernt!
+    # Stattdessen explizite Netzwerke und Ports
+    networks:
+      - proxy              # Für zukünftigen Traefik-Zugriff
+      - homeassistant_internal
+    ports:
+      - "8123:8123"        # Für nginx und lokalen Zugriff
+    restart: unless-stopped
+    security_opt:
+      - "apparmor=docker-default"
+    labels:
+      # Traefik Labels für zukünftige Nutzung (hajo63.de)
+      - "traefik.enable=true"
+      - "traefik.http.routers.homeassistant.rule=Host(`ha.hajo63.de`)"
+      - "traefik.http.routers.homeassistant.entrypoints=websecure"
+      - "traefik.http.routers.homeassistant.tls=true"
+      - "traefik.http.routers.homeassistant.tls.certresolver=letsencrypt"
+      - "traefik.http.services.homeassistant.loadbalancer.server.port=8123"
+      - "traefik.docker.network=proxy"
+      # Middleware für Home Assistant
+      - "traefik.http.routers.homeassistant.middlewares=homeassistant-headers"
+      - "traefik.http.middlewares.homeassistant-headers.headers.customrequestheaders.X-Forwarded-Proto=https"
+      - "traefik.http.middlewares.homeassistant-headers.headers.customrequestheaders.X-Forwarded-For="
+
+  ##################################################
+  # Homeassistant - Datenbank
+  ##################################################
+  homeassistant-db:
+    image: mariadb
+    container_name: homeassistant-db
+    restart: unless-stopped
+    networks:
+      - homeassistant_internal  # Nur intern, kein Proxy-Zugriff
+    volumes:
+      - /home/hajo/docker-volumes/homeassistant-mariadb:/var/lib/mysql
+    environment:
+      TZ: Europe/Berlin
+      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD}"
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: "${MYSQL_PASSWORD}"
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+    ports:
+      - 3306:3306
+    logging:
+      driver: "json-file"
+      options:
+        max-file: 5
+        max-size: 15m
+    healthcheck:
+      test:  mysqladmin ping -h 127.0.0.1 -u root --password=$MYSQL_ROOT_PASSWORD || exit 1
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  ##################################################
+  # zigbee2mqtt
+  ##################################################
+  # WICHTIG: Braucht network_mode: host für USB-Gerätezugriff
+  # Verwendet stabilen by-id Link statt ttyUSB0
+  zigbee2mqtt:
+    container_name: zigbee2mqtt
+    image: koenkk/zigbee2mqtt
+    deploy:
+        resources:
+            limits:
+              cpus: '1.0'
+              memory: 256M
+    depends_on:
+      - mqtt
+    volumes:
+      - /home/hajo/docker-volumes/zigbee2mqtt/data:/app/data
+      - /run/udev:/run/udev:ro
+    ports:
+      - 8082:8080
+    devices:
+      - /dev/serial/by-id/usb-ITead_Sonoff_Zigbee_3.0_USB_Dongle_Plus_8ec00336acc9eb1186858b4f1d69213e-if00-port0:/dev/ttyUSB0
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - TZ=Europe/Berlin
+    healthcheck:
+      test:  HEALTHCHECK CMD curl --fail http://localhost:8082/ || exit 1
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  ##################################################
+  # nginx - ÜBERGANGSPHASE für hajo62.duckdns.org
+  ##################################################
+  nginx: 
+    image: nginx:stable
+    container_name: nginx
+    deploy:
+      resources:
+          limits:
+            cpus: '1.0'
+            memory: 128M
+    volumes:
+      - ./docker-volumes/nginx/log:/var/log/nginx
+      - ./docker-volumes/nginx/etc/nginx.conf:/etc/nginx/nginx.conf
+      - ./docker-volumes/nginx/etc/nginx/cache:/etc/nginx/cache
+      - ./docker-volumes/nginx/etc/passwords:/etc/nginx/passwords
+      - /home/hajo/docker-volumes/LetsEncrypt/certs/:/etc/letsencrypt/
+      - /home/hajo/docker-volumes/LetsEncrypt/certs/dhparam.pem:/etc/nginx/dhparam.pem
+      - /home/hajo/docker-volumes/geoip-upd/geoip2:/usr/share/Geoip:ro
+    networks:
+      - proxy  # Zugriff auf alle Services im proxy-Netzwerk
+    ports:
+      - 80:80     # HTTP (für Let's Encrypt Challenge und Redirects)
+      - 443:443   # HTTPS (hajo62.duckdns.org)
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=false"  # nginx nicht über Traefik erreichbar
+
+  ##################################################
+  # Nextcloud
+  ##################################################
+  nextcloud:
+    image: nextcloud:stable
+    container_name: nextcloud
+    restart: unless-stopped
+    hostname: nc.hajo62.duckdns.org
+    depends_on:
+      - nextcloud-db
+      - nextcloud-redis
+    deploy:
+        resources:
+            limits:
+              cpus: '2.0'
+              memory: 4G
+    networks:
+      - proxy              # Für nginx und zukünftigen Traefik
+      - nextcloud_internal # Für DB und Redis
+    dns:
+      - 127.0.0.1
+      - 1.1.1.1
+    ports:
+      - 8088:80
+    volumes:
+      - /home/hajo/docker-volumes/nextcloud:/var/www/html
+      - /home/hajo/Photos:/mnt/Photos
+    labels:
+      # Traefik Labels für zukünftige Nutzung (hajo63.de)
+      - "traefik.enable=true"
+      - "traefik.http.routers.nextcloud.rule=Host(`nc.hajo63.de`)"
+      - "traefik.http.routers.nextcloud.entrypoints=websecure"
+      - "traefik.http.routers.nextcloud.tls=true"
+      - "traefik.http.routers.nextcloud.tls.certresolver=letsencrypt"
+      - "traefik.http.services.nextcloud.loadbalancer.server.port=80"
+      - "traefik.docker.network=proxy"
+      # Nextcloud-spezifische Middleware
+      - "traefik.http.routers.nextcloud.middlewares=nextcloud-headers,nextcloud-redirect"
+      - "traefik.http.middlewares.nextcloud-headers.headers.customrequestheaders.X-Forwarded-Proto=https"
+      - "traefik.http.middlewares.nextcloud-headers.headers.stsSeconds=15552000"
+      - "traefik.http.middlewares.nextcloud-redirect.redirectregex.regex=https://(.*)/.well-known/(card|cal)dav"
+      - "traefik.http.middlewares.nextcloud-redirect.redirectregex.replacement=https://$$1/remote.php/dav/"
+
+  ##################################################
+  # Nextcloud - Datenbank
+  ##################################################
+  nextcloud-db:
+    image: mariadb
+    container_name: nextcloud-db
+    restart: unless-stopped
+    deploy:
+        resources:
+            limits:
+              cpus: '2.0'
+              memory: 4G    
+    volumes:
+      - /home/hajo/docker-volumes/nextcloud-mariadb:/var/lib/mysql
+    hostname: nextcloud-db
+    networks:
+      - nextcloud_internal  # Nur intern, kein Proxy-Zugriff
+    environment:
+      TZ: Europe/Berlin
+      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD}"
+      MYSQL_USER: "${MYSQL_NCUSER}"
+      MYSQL_PASSWORD: "${MYSQL_NCPASSWORD}"
+      MYSQL_DATABASE: "${MYSQL_NCDATABASE}"
+    command: --transaction-isolation=READ-COMMITTED --log-bin=ROW --innodb-read-only-compressed=OFF --log_bin_trust_function_creators=1
+    ports:
+      - 3307:3306      
+    healthcheck:
+      test:  mysqladmin ping -h 127.0.0.1 -u ${MYSQL_NCUSER} --password=${MYSQL_NCPASSWORD} || exit 1
+      interval: 30s
+      timeout: 5s
+      retries: 5 
+
+  ##################################################
+  # Nextcloud - Cache
+  ##################################################
+  nextcloud-redis:
+      image: redis:alpine
+      container_name: nextcloud-redis      
+      restart: unless-stopped
+      networks:
+        - nextcloud_internal
+      deploy:
+        resources:
+          limits:
+            cpus: '1.0'
+            memory: 0.5G
+
+  ##################################################
+  # Mosquitto
+  ##################################################
+  mqtt:
+    image: eclipse-mosquitto
+    container_name: mosquitto
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 125M
+    networks:
+      - homeassistant_internal
+    volumes:
+      - /home/hajo/docker-volumes/mosquitto:/mosquitto
+    ports:
+      - 1883:1883
+      - 9001:9001
+
+  ##################################################
+  # Homee2mqtt
+  ##################################################
+  # WICHTIG: Braucht network_mode: host für Homee-Zugriff im lokalen Netzwerk
+  homee2mqtt:
+    container_name: homee2mqtt
+    image: hajo/homee2mqtt:10-0.0.4
+    depends_on:
+      - mqtt
+    volumes:
+      - /home/hajo/docker-volumes/homee2mqtt/config.json:/etc/homeeToMqtt/config.json
+      - /home/hajo/docker-volumes/homee2mqtt/log:/usr/src/app/log
+    network_mode: host
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+    restart: unless-stopped
+
+  ####################################################################################################
+  # PiGallery2
+  ####################################################################################################
+  pigallery2:
+    image: bpatrik/pigallery2:v2.0.0
+    command: sh -c 'bin/wait-for 192.168.178.3:${MYSQL_PGDATABASEPort} -- --Server-Database-mysql-host=192.168.178.3 --Server-Database-mysql-username=${MYSQL_PGUSER} --Server-Database-mysql-password="${MYSQL_PGPASSWORD}" --Server-Database-mysql-database="${MYSQL_PGDATABASE}"'
+    container_name: pigallery2
+    depends_on:
+      - pigallery2-db    
+    environment:
+      - NODE_ENV=production
+      - Users-enforcedUsers=[{"name":"myadmin","encryptedPassword":"$$2b$$09$$IsOgbj/OfgnJhN.bjfY7leDA3adfLLtzNQ3OIzqpXhohF.4m4nVWS","role":"4"}]
+    networks:
+      - proxy  # Für nginx und zukünftigen Traefik
+    volumes:
+      - "/home/hajo/docker-volumes/pigallery2/config:/app/data/config"
+      - /home/hajo/docker-volumes/pigallery2:/app/data/tmp
+      - /home/hajo/Photos/2026:/app/data/images/2026:ro
+      - /home/hajo/Photos/2025:/app/data/images/2025:ro
+      - /home/hajo/Photos/2024:/app/data/images/2024:ro
+      - /home/hajo/Photos/2023:/app/data/images/2023:ro
+      - /home/hajo/Photos/2022:/app/data/images/2022:ro
+      - /home/hajo/Photos/2021:/app/data/images/2021:ro
+      - /home/hajo/Photos/2020:/app/data/images/2020:ro
+      - /home/hajo/Photos/2010-2019/2019:/app/data/images/2019:ro
+      - /home/hajo/Photos/2010-2019/2018:/app/data/images/2018:ro
+      - /home/hajo/Photos/2010-2019/2017:/app/data/images/2017:ro
+      - /home/hajo/Photos/2010-2019/2016:/app/data/images/2016:ro
+      - /home/hajo/Photos/2010-2019/2015:/app/data/images/2015:ro
+      - /home/hajo/Photos/2010-2019/2014:/app/data/images/2014:ro
+      - /home/hajo/Photos/2010-2019/2013:/app/data/images/2013:ro
+      - /home/hajo/Photos/2010-2019/2012:/app/data/images/2012:ro
+      - /home/hajo/Photos/2010-2019/2011:/app/data/images/2011:ro
+      - /home/hajo/Photos/2010-2019/2010:/app/data/images/2010:ro
+      - /home/hajo/Photos/2000-2009/2009:/app/data/images/2009:ro
+      - /home/hajo/Photos/2000-2009/2008:/app/data/images/2008:ro
+      - /home/hajo/Photos/2000-2009/2007:/app/data/images/2007:ro
+      - /home/hajo/Photos/2000-2009/2006:/app/data/images/2006:ro
+      - /home/hajo/Photos/2000-2009/2005:/app/data/images/2005:ro
+      - /home/hajo/Photos/2000-2009/2004:/app/data/images/2004:ro
+      - /home/hajo/Photos/2000-2009/2003:/app/data/images/2003:ro
+      - /home/hajo/Photos/2000-2009/2002:/app/data/images/2002:ro
+      - /home/hajo/Photos/2000-2009/2001:/app/data/images/2001:ro
+      - /home/hajo/Photos/2000-2009/2000:/app/data/images/2000:ro
+      - /home/hajo/Photos/1990-1999/1999:/app/data/images/1999:ro
+      - /home/hajo/Photos/1990-1999/1998:/app/data/images/1998:ro
+      - /home/hajo/Photos/1990-1999/1997:/app/data/images/1997:ro
+      - /home/hajo/Photos/1990-1999/1996:/app/data/images/1996:ro
+      - /home/hajo/Photos/1990-1999/1995:/app/data/images/1995:ro
+      - /home/hajo/Photos/1990-1999/1994:/app/data/images/1994:ro
+      - /home/hajo/Photos/1990-1999/1993:/app/data/images/1993:ro
+      - /home/hajo/Photos/1990-1999/1992:/app/data/images/1992:ro
+      - /home/hajo/Photos/1990-1999/1991:/app/data/images/1991:ro
+      - /home/hajo/Photos/1990-1999/1990:/app/data/images/1990:ro
+      - /home/hajo/Photos/1980-1989/1989:/app/data/images/1989:ro
+      - /home/hajo/Photos/1980-1989/1988:/app/data/images/1988:ro
+      - /home/hajo/Photos/1980-1989/1987:/app/data/images/1987:ro
+      - /home/hajo/Photos/1980-1989/1986:/app/data/images/1986:ro
+      - /home/hajo/Photos/1980-1989/1985:/app/data/images/1985:ro
+      - /home/hajo/Photos/1980-1989/1984:/app/data/images/1984:ro
+      - /home/hajo/Photos/1980-1989/1983:/app/data/images/1983:ro
+      - /home/hajo/Photos/1980-1989/1982:/app/data/images/1982:ro
+      - /home/hajo/Photos/1980-1989/1981:/app/data/images/1981:ro
+      - /home/hajo/Photos/1980-1989/1980:/app/data/images/1980:ro 
+      - /home/hajo/Photos/1970-1979:/app/data/images/1970-1979:ro 
+      - /home/hajo/Photos/1962-1969:/app/data/images/1962-1969:ro
+      - /home/hajo/Photos/Sammelsurium:/app/data/images/1_Sammelsurium:ro
+      - /home/hajo/Photos/Eltern:/app/data/images/0_Eltern:ro
+      - /home/hajo/Photos/Fotoalben:/app/data/images/2_Fotoalben:ro
+    ports:
+      - 8001:80
+    deploy:
+        resources:
+            limits:
+              memory: 768M
+    restart: unless-stopped
+    labels:
+      # Traefik Labels für zukünftige Nutzung (hajo63.de)
+      - "traefik.enable=true"
+      - "traefik.http.routers.pigallery2.rule=Host(`pg.hajo63.de`)"
+      - "traefik.http.routers.pigallery2.entrypoints=websecure"
+      - "traefik.http.routers.pigallery2.tls=true"
+      - "traefik.http.routers.pigallery2.tls.certresolver=letsencrypt"
+      - "traefik.http.services.pigallery2.loadbalancer.server.port=80"
+      - "traefik.docker.network=proxy"
+
+  ####################################################################################################
+  # PiGallery2 - Datenbank
+  ####################################################################################################
+  pigallery2-db:
+    image: mariadb
+    container_name: pigallery2-db
+    restart: unless-stopped
+    networks:
+      - proxy  # Pigallery2 greift über IP zu, daher im gleichen Netzwerk
+    volumes:
+      - /home/hajo/docker-volumes/pigallery2-mariadb:/var/lib/mysql
+    environment:
+      PUID: 1000
+      PGID: 1000
+      TZ: Europe/Berlin
+      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD}"
+      MYSQL_USER: ${MYSQL_PGUSER}
+      MYSQL_PASSWORD: "${MYSQL_PGPASSWORD}"
+      MYSQL_DATABASE: "${MYSQL_PGDATABASE}"
+    ports:
+      - ${MYSQL_PGDATABASEPort}:3306
+    healthcheck:
+      test:  mysqladmin ping -h 127.0.0.1 -u ${MYSQL_PGUSER} --password=$MYSQL_ROOT_PASSWORD || exit 1
+      interval: 30s
+      timeout: 5s
+      retries: 5 
+
+  # ##################################################
+  # # Signal Messagenger CLI API
+  # ##################################################
+  # Migriert auf Pi5
+  # signal-cli-rest-api:
+  #   image: bbernhard/signal-cli-rest-api:latest
+  #   container_name: signal
+  #   dns:
+  #     8.8.8.8
+  #   ports:
+  #     - "8080:8080"
+  #   networks:
+  #     - homeassistant_internal
+  #   volumes:
+  #     - "/home/hajo/docker-volumes/signal-cli-rest-api:/home/.local/share/signal-cli" 
+  #   environment:
+  #     - MODE=normal
+  #     - AUTO_RECEIVE_SCHEDULE=2 18 * * *
+  #   restart: unless-stopped
+
+  ##################################################
+  # Z-Wave JS Server
+  ##################################################
+  zwave-server:
+    image: zwavejs/zwave-js-ui:latest
+    container_name: zwave-server
+    networks:
+      - homeassistant_internal
+    ports:
+      - 8091:8091
+      - 3000:3000
+    environment:
+      TZ: Europe/Berlin
+    volumes:
+      - /home/hajo/docker-volumes/zwave-server:/usr/src/app/store 
+    devices:
+      - /dev/serial/by-id/usb-0658_0200-if00:/dev/zwave
+    restart: unless-stopped
+
+  ##################################################
+  # GeoIP Update
+  ##################################################
+  geoip-upd:
+    container_name: geoip-upd
+    image: maxmindinc/geoipupdate:latest
+    restart: unless-stopped
+    volumes:
+      - /home/hajo/docker-volumes/geoip-upd/geoip2:/usr/share/GeoIP
+    environment:
+      TZ: "Europe/BERLIN"
+      GEOIPUPDATE_ACCOUNT_ID: 682746
+      GEOIPUPDATE_LICENSE_KEY: "1vtl5B1YVFtjszjo"
+      GEOIPUPDATE_EDITION_IDS: "GeoLite2-City GeoLite2-Country GeoLite2-ASN"    
+      GEOIPUPDATE_FREQUENCY: 12                
+      GEOIPUPDATE_PRESERVE_FILE_TIMES: 1 
+
+  ##################################################
+  # Samba
+  ##################################################
+  samba:
+    image: dperson/samba
+    container_name: samba
+    environment:
+      - TZ=Europe/Berlin
+      - WORKGROUP=WORKGROUP
+      - USERID=33
+      - GROUPID=33
+      - RECYCLE
+    networks:
+      - default
+    ports:
+      - "137:137/udp"
+      - "138:138/udp"      
+      - '139:139/tcp'
+      - '445:445/tcp'
+    read_only: false
+    tmpfs:
+      - /tmp
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    volumes:
+      - /home/hajo/Photos:/mnt/Photos
+    command:
+      -u "HAJO;HAJO"    
+      -s "photos;/mnt/Photos;yes;no;no;all;'none';'none';'Photos'"
+      -S 
+      -p
+
+  ##################################################
+  # PhotoPrism
+  ##################################################
+  photoprism:
+    image: photoprism/photoprism:arm64
+    container_name: photoprism
+    depends_on:
+      - photoprism-mariadb
+    security_opt:
+      - seccomp:unconfined
+      - apparmor:unconfined
+    ports:
+      - "2342:2342"
+    environment:
+      PHOTOPRISM_ADMIN_USER: "admin"
+      PHOTOPRISM_ADMIN_PASSWORD: "insecure"
+      PHOTOPRISM_AUTH_MODE: "password"
+      PHOTOPRISM_SITE_URL: "http://192.168.178.3:2342/"
+      PHOTOPRISM_ORIGINALS_LIMIT: 5000
+      PHOTOPRISM_HTTP_COMPRESSION: "none"
+      PHOTOPRISM_WORKERS: 2
+      PHOTOPRISM_LOG_LEVEL: "info"
+      PHOTOPRISM_READONLY: "false"
+      PHOTOPRISM_EXPERIMENTAL: "false"
+      PHOTOPRISM_DISABLE_CHOWN: "false"
+      PHOTOPRISM_DISABLE_WEBDAV: "false"
+      PHOTOPRISM_DISABLE_SETTINGS: "false"
+      PHOTOPRISM_DISABLE_TENSORFLOW: "false"
+      PHOTOPRISM_DISABLE_FACES: "false"
+      PHOTOPRISM_DISABLE_CLASSIFICATION: "false"
+      PHOTOPRISM_DISABLE_RAW: "false"
+      PHOTOPRISM_RAW_PRESETS: "false"
+      PHOTOPRISM_JPEG_QUALITY: 85
+      PHOTOPRISM_DETECT_NSFW: "false"
+      PHOTOPRISM_UPLOAD_NSFW: "true"
+      PHOTOPRISM_DATABASE_DRIVER: "mysql"
+      PHOTOPRISM_DATABASE_SERVER: "192.168.178.3:3311"
+      PHOTOPRISM_DATABASE_NAME: "photoprism"
+      PHOTOPRISM_DATABASE_USER: "photoprism"
+      PHOTOPRISM_DATABASE_PASSWORD: "insecure"
+      PHOTOPRISM_SITE_CAPTION: "AI-Powered Photos App"
+      PHOTOPRISM_SITE_DESCRIPTION: ""
+      PHOTOPRISM_SITE_AUTHOR: ""
+    working_dir: "/photoprism"
+    volumes:
+      - "/home/hajo/Photos/For_Immich:/photoprism/originals"
+      - "/home/hajo/docker-volumes/photoprism/storage:/photoprism/storage"
+
+  ##################################################
+  # PhotoPrism - Datenbank
+  ##################################################
+  photoprism-mariadb:
+    restart: unless-stopped
+    image: arm64v8/mariadb:10.10
+    security_opt:
+      - seccomp:unconfined
+      - apparmor:unconfined
+    ports:
+      - 3311:3306  
+    command: mysqld --innodb-buffer-pool-size=256M --transaction-isolation=READ-COMMITTED --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --max-connections=512 --innodb-rollback-on-timeout=OFF --innodb-lock-wait-timeout=120
+    volumes:
+      - "/home/hajo/docker-volumes/photoprism-mariadb:/var/lib/mysql"
+    environment:
+      MARIADB_AUTO_UPGRADE: "1"
+      MARIADB_INITDB_SKIP_TZINFO: "1"
+      MARIADB_DATABASE: "photoprism"
+      MARIADB_USER: "photoprism"
+      MARIADB_PASSWORD: "insecure"
+      MARIADB_ROOT_PASSWORD: "insecure"
+
+  ##################################################
+  # DigiKam
+  ##################################################
+  digikam:
+    image: lscr.io/linuxserver/digikam:latest
+    container_name: digikam
+    environment:
+      TZ: Europe/Berlin
+      PUID: 33
+      PGID: 33
+      KEYBOARD: de-de-qwertz
+    volumes:
+      - /home/hajo/docker-volumes/digikam:/config
+      - "/home/hajo/docker-volumes/nextcloud/data/hajo/files/Photos/For_Digikam:/data"
+    ports:
+      - 4000:3000
+    restart: unless-stopped
+
+  ##################################################
+  # PiGallery3
+  ##################################################
+  pigallery3:
+    image: bpatrik/pigallery2:edge-alpine
+    command: sh -c 'bin/wait-for 192.168.178.3:3312 -- --Server-Database-mysql-host=192.168.178.3 --Server-Database-mysql-username=${MYSQL_PGUSER} --Server-Database-mysql-password="${MYSQL_PGPASSWORD}" --Server-Database-mysql-database="${MYSQL_PGDATABASE}"'
+    container_name: pigallery3
+    depends_on:
+      - pigallery3-mariadb    
+    environment:
+      - NODE_ENV=production
+    volumes:
+      - /home/hajo/docker-volumes/pigallery3/config:/app/data/config
+      - /home/hajo/docker-volumes/pigallery3:/app/data/tmp
+      - /home/hajo/docker-volumes/nextcloud/data/hajo/files/Photos/2024:/app/data/images/2024:ro
+      - /home/hajo/docker-volumes/nextcloud/data/hajo/files/Photos/2010-2019/2014:/app/data/images/2014:ro
+    ports:
+      - 8002:80
+    restart: unless-stopped
+
+  ##################################################
+  # PiGallery3 - Datenbank
+  ##################################################
+  pigallery3-mariadb:
+    image: mariadb
+    container_name: pigallery3-mariadb
+    restart: unless-stopped
+    volumes:
+      - /home/hajo/docker-volumes/pigallery3-mariadb:/var/lib/mysql
+    environment:
+      PUID: 1000
+      PGID: 1000
+      TZ: Europe/Berlin
+      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD}"
+      MYSQL_USER: ${MYSQL_PGUSER}
+      MYSQL_PASSWORD: "${MYSQL_PGPASSWORD}"
+      MYSQL_DATABASE: "${MYSQL_PGDATABASE}"
+    ports:
+      - 3312:3306
+    healthcheck:
+      test:  mysqladmin ping -h 127.0.0.1 -u ${MYSQL_PGUSER} --password=$MYSQL_ROOT_PASSWORD || exit 1
+      interval: 30s
+      timeout: 5s
+      retries: 5 
+
+  ##################################################
+  # This week in past
+  ##################################################
+  this-week-in-past:
+    image: rouhim/this-week-in-past:1.31.26
+    container_name: this-week-in-past
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+    restart: unless-stopped
+    volumes:
+      - /home/hajo/Photos:/resources:ro
+    ports:
+      - "8180:8080"
+    environment:
+      BIGDATA_CLOUD_API_KEY: ${THIS_WEEK_IN_PAST_BIGDATA_CLOUD_API_KEY}
+      DATE_FORMAT: '%a %d.%m.%Y'
+      IGNORE_FOLDER_MARKER_FILES: '.twipignore'
+      IGNORE_FOLDER_REGEX: '.*(I|i)gnor(e|ieren)|.*(P|p)rivat|.*Originale|.*xcf|.*Originale und xcf'
+      OPEN_WEATHER_MAP_API_KEY: ${THIS_WEEK_IN_PAST_OPEN_WEATHER_MAP_API_KEY}
+      PRELOAD_IMAGES: true
+      RESOURCE_PATHS: /resources/2025,/resources/2024,/resources/2023,/resources/2022,/resources/2021,/resources/2020,/resources/2010-2019,/resources/2000-2009,/resources/1990-1999,/resources/1980-1989,/resources/1970-1979,/resources/1962-1969,/resources/Fotoalben
+      RUST_BACKTRACE: full
+      RUST_LOG: debug
+      SHOW_HIDE_BUTTON: true
+      SLIDESHOW_INTERVAL: 120
+      TZ: Europe/Berlin
+      LANG: de_DE.UTF-8
+      LANGUAGE: de_DE.UTF-8
+      LC_TIME: de_DE.UTF-8
+      LC_ALL: de_DE.UTF-8
+      WEATHER_ENABLED: true
+      WEATHER_LANGUAGE: de
+      PUID: 33
+      PGID: 33
+
+  ##################################################
+  # This week in past - priv
+  ##################################################
+  this-week-in-past-priv:
+    image: rouhim/this-week-in-past:1.31.26
+    container_name: this-week-in-past-priv
+    restart: unless-stopped
+    volumes:
+      - /home/hajo/Photos:/resources:ro
+    ports:
+      - "8280:8080"
+    deploy:
+        resources:
+            limits:
+              cpus: '1.0'
+              memory: 384M
+    environment:
+      BIGDATA_CLOUD_API_KEY: ${THIS_WEEK_IN_PAST_BIGDATA_CLOUD_API_KEY}
+      DATE_FORMAT: '%a %d.%m.%Y'
+      IGNORE_FOLDER_MARKER_FILES: '.twipignore'
+      IGNORE_FOLDER_REGEX: '.*ausblenden|.*Originale und xcf'
+      OPEN_WEATHER_MAP_API_KEY: ${THIS_WEEK_IN_PAST_OPEN_WEATHER_MAP_API_KEY}
+      RANDOM_SLIDESHOW: true
+      RESOURCE_PATHS: /resources/2010-2019/2011/ausblenden/2011.08 - 2 - Kroatien/2011.08 - 4 - Pasman only privat
+      RUST_BACKTRACE: full
+      RUST_LOG: debug
+      SHOW_HIDE_BUTTON: true
+      SLIDESHOW_INTERVAL: 145
+      TZ: Europe/Berlin
+      WEATHER_ENABLED: false
+      WEATHER_LANGUAGE: de
+      PUID: 33
+      PGID: 33
+
+  ##################################################
+  # Foto Gallery
+  ##################################################
+  foto-gallery:
+    image: varieum/foto-gallery:latest
+    container_name: foto-gallery
+    environment:
+      PUID: 1000
+      PGID: 1000
+      TZ: Europe/Berlin
+      PIGALLERY2_BASEURL_PROP: http://192.168.178.3:8002
+      PIGALLERY2_LOGIN_PROP: admin
+      PIGALLERY2_PASSWORD_PROP: admin
+    ports:
+      - "8099:80"
+    restart: unless-stopped
+
+  ##################################################
+  # DbStats für Home Assistant
+  ##################################################
+  hass-dbstats:
+    container_name: dbstats
+    image: "ghcr.io/jehy/hass-dbstats:latest"
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - TZ=Europe/Berlin
+      - DB_CONNECT_STRING=postgresql://hajo:MARIARat1onal@172.17.0.1:5432/homeassistantdb
+
+# ============================================
+# NETZWERK-KONFIGURATION
+# ============================================
+networks:
+  # Proxy-Netzwerk für nginx (aktuell) und Traefik (zukünftig)
+  proxy:
+    name: proxy
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+          gateway: 172.20.0.1
+  
+  # Internes Netzwerk für Home Assistant und zugehörige Services
+  homeassistant_internal:
+    name: homeassistant_internal
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16
+  
+  # Internes Netzwerk für Nextcloud (DB + Redis)
+  nextcloud_internal:
+    name: nextcloud_internal
+    driver: bridge
+    internal: true  # Kein Internet-Zugriff für DB
+    ipam:
+      config:
+        - subnet: 172.22.0.0/16
+
+# Made with Bob

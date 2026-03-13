@@ -1,0 +1,95 @@
+# ============================================
+# Traefik Dynamic Configuration - Routes
+# ============================================
+#
+# Alle Routers und Services für Pi4-Backend
+# Backend: Nginx auf Pi4 (192.168.178.3:80)
+#
+# ============================================
+
+http:
+  # ============================================
+  # Routers
+  # ============================================
+  routers:
+    # HTTP zu HTTPS Redirect
+    http-catchall:
+      rule: "HostRegexp(`{host:.+}`)"
+      entryPoints:
+        - web
+      middlewares:
+        - redirect-to-https
+      service: noop@internal
+
+    # ============================================
+    # Direct-IP Blocking (HTTPS Catch-All)
+    # ============================================
+    # Fängt alle HTTPS-Requests ab, die keinem bekannten Hostnamen entsprechen:
+    # - Direct-IP Hits (https://93.184.216.34/)
+    # - Unbekannte Domains
+    # - Scanner ohne korrekten SNI-Hostnamen
+    #
+    # Priorität 1 = niedrigste → greift NUR wenn kein anderer Router passt.
+    # Bekannte Hosts (ha, nc, pg) haben höhere Priorität und werden normal geroutet.
+    #
+    # Antwort: 404 (noop@internal – kein Backend, kein Service)
+    # → Keine Middlewares: kein GeoBlock, kein CrowdSec-Bouncer
+    # → CrowdSec erkennt wiederholte Hits via http-probing-Scenario (Schwellenwert)
+    https-catchall:
+      rule: "HostRegexp(`{host:.+}`) && PathPrefix(`/`)"
+      entryPoints:
+        - websecure
+      priority: 1
+      service: noop@internal
+      tls: {}
+
+    # Home Assistant: siehe homeassistant.yml
+    
+    # Nextcloud: siehe nextcloud.yml
+    
+    # Pigallery2
+    pg:
+      rule: "Host(`pg.hajo63.de`) || Host(`pg.hajo62.duckdns.org`)"
+      entryPoints:
+        - websecure
+      service: pi4-nginx
+      middlewares:
+        - rate-limit-standard@file  # 1. Rate Limit: verhindert DoS, schützt GeoIP-API
+        - geoblock-de@file          # 2. GeoIP: blockiert nicht-DE-IPs
+        - secure-headers@file       # 3. Security Headers setzen
+      tls:
+        options: tls-modern
+
+    # Attack Dashboard
+    attack-dashboard:
+      rule: "Host(`attack.hajo63.de`)"
+      entryPoints:
+        - websecure
+      service: attack-dashboard
+      middlewares:
+        - geoblock-de@file        # 1. GeoIP: blockiert nicht-DE-IPs
+        - dashboard-auth@file     # 2. Basic Auth: Zugriffsschutz
+        - secure-headers@file     # 3. Security Headers setzen
+      tls:
+        options: tls-modern
+
+  # ============================================
+  # Services
+  # ============================================
+  services:
+    # Pi4 Nginx Backend
+    pi4-nginx:
+      loadBalancer:
+        passHostHeader: true
+        servers:
+          - url: "http://192.168.178.3:80"
+
+    # Attack Dashboard (lokaler Docker-Container)
+    attack-dashboard:
+      loadBalancer:
+        servers:
+          - url: "http://attack-dashboard:8095"
+
+    # Nextcloud Services: siehe nextcloud.yml
+
+# Made with Bob

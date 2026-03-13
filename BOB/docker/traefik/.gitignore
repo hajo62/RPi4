@@ -1,0 +1,24 @@
+# Umgebungsvariablen
+.env
+
+# SSL-Zertifikate
+letsencrypt/
+certs/
+
+# Logs
+logs/
+*.log
+
+# Datenbank
+db/
+
+# Temporäre Dateien
+*.tmp
+*.swp
+*~
+
+# Backups
+*.backup
+*.bak
+# Auth-Middleware (enthält htpasswd-Hash)
+config/dynamic/middlewares.auth.yml

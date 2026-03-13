@@ -1,0 +1,12 @@
+# Umgebungsvariablen
+.env
+
+# Daten-Verzeichnis
+data/
+
+# Logs
+*.log
+
+# Backup-Dateien
+*.bak
+*~

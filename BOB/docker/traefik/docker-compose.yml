@@ -1,0 +1,81 @@
+# ============================================
+# Traefik Reverse Proxy
+# ============================================
+#
+# File Provider Ansatz (wie traefik-stack-hajo63-v3):
+# - Alle Routers, Services und Middlewares in config/dynamic/routes.yml
+# - KEINE Docker Labels, KEINE Proxy-Container
+# - Routing zu Pi4 Nginx (http://192.168.178.3:80)
+#
+# Verwendung:
+#   docker compose up -d              # Traefik starten
+#   docker compose logs -f traefik    # Logs anzeigen
+#   docker compose down               # Traefik stoppen
+#
+# ============================================
+
+services:
+  traefik:
+    image: traefik:v3.6
+    container_name: traefik
+    restart: unless-stopped
+    
+    # Ressourcen-Limits
+    cpus: "0.75"
+    mem_limit: "512m"
+    pids_limit: 256
+    
+    security_opt:
+      - no-new-privileges:true
+    
+    environment:
+      - TZ=Europe/Berlin
+      - DOCKER_API_VERSION=1.44
+    
+    ports:
+      - "80:80"
+      - "443:443"
+      - "0.0.0.0:8092:8080"  # Dashboard - Zugriff via nftables auf LAN beschränkt
+    
+    volumes:
+      # Docker Socket (read-only) - nur für Dashboard
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      
+      # Konfiguration
+      - ./config/traefik.yml:/etc/traefik/traefik.yml:ro
+      
+      # Dynamic Configuration (komplettes Verzeichnis)
+      - ./config/dynamic:/etc/traefik/dynamic:ro
+      
+      # SSL-Zertifikate (Ionos)
+      - ./certs:/certs:ro
+      
+      # Logs
+      - ./logs:/logs:rw
+      
+      # Zeitzone
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+    
+    networks:
+      - crowdsec-net
+    
+    labels:
+      # Watchtower
+      - "com.centurylinklabs.watchtower.enable=true"
+      
+      # What's Up Docker
+      - "wud.watch=true"
+      - "wud.tag.include=^v?3\\.\\d+$$"
+      - "wud.display.name=Traefik"
+      - "wud.display.icon=si:traefikproxy"
+
+# ============================================
+# Netzwerke
+# ============================================
+networks:
+  # CrowdSec-Netzwerk (für Firewall-Bouncer Kommunikation)
+  crowdsec-net:
+    external: true
+
+# Made with Bob

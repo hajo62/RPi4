@@ -1,0 +1,33 @@
+# ============================================
+# Nextcloud - Git Ausschlüsse
+# ============================================
+
+# Umgebungsvariablen
+.env
+
+# Daten-Verzeichnisse
+data/
+db/
+logs/
+
+# Backup-Dateien
+*.backup
+*.bak
+*.sql
+*.sql.gz
+
+# Secrets & Zertifikate
+*.key
+*.pem
+*.crt
+*.p12
+
+# Temporäre Dateien
+*.tmp
+*.log
+*.swp
+*~
+
+# OS-spezifisch
+.DS_Store
+Thumbs.db

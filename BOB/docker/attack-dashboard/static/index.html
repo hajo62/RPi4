@@ -1,0 +1,1320 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Attack Dashboard – Pi5</title>
+  <style>
+    /* ── Reset & Base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:        #080e1a;
+      --bg2:       #0d1628;
+      --bg3:       #111e35;
+      --border:    #1a2d50;
+      --accent:    #2563eb;
+      --accent2:   #7c3aed;
+      --red:       #ef4444;
+      --orange:    #f97316;
+      --yellow:    #eab308;
+      --green:     #22c55e;
+      --teal:      #14b8a6;
+      --muted:     #64748b;
+      --text:      #e2e8f0;
+      --text2:     #94a3b8;
+      --radius:    10px;
+      --shadow:    0 2px 12px rgba(0,0,0,.4);
+    }
+    html, body { height: 100%; }
+    body {
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    /* ── Layout ── */
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 20px;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 100;
+    }
+    header h1 { font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    header h1 .icon { font-size: 20px; }
+    .header-right { display: flex; align-items: center; gap: 16px; }
+    #status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+    #status-dot.ok  { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    #status-dot.err { background: var(--red);   box-shadow: 0 0 6px var(--red); }
+    #last-update { font-size: 11px; color: var(--text2); }
+
+    /* ── Window Toggle ── */
+    .window-toggle {
+      display: flex;
+      gap: 4px;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 2px;
+    }
+    .window-toggle button {
+      padding: 4px 12px;
+      font-size: 11px;
+      font-weight: 600;
+      background: transparent;
+      border: none;
+      border-radius: 4px;
+      color: var(--text2);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .window-toggle button:hover {
+      background: var(--bg);
+      color: var(--text);
+    }
+    .window-toggle button.active {
+      background: var(--accent);
+      color: white;
+      box-shadow: 0 2px 4px rgba(37,99,235,0.3);
+    }
+
+    main { padding: 16px 20px; max-width: 1400px; margin: 0 auto; }
+
+    /* ── KPI Cards ── */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .kpi {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      position: relative;
+      /* overflow: hidden entfernt – sonst wird das Info-Popup abgeschnitten */
+    }
+    .kpi::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    }
+    .kpi.red::before    { background: var(--red); }
+    .kpi.orange::before { background: var(--orange); }
+    .kpi.yellow::before { background: var(--yellow); }
+    .kpi.teal::before   { background: var(--teal); }
+    .kpi.purple::before { background: var(--accent2); }
+    .kpi-label { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: .05em; }
+    .kpi-value { font-size: 32px; font-weight: 800; margin: 4px 0 2px; line-height: 1; }
+    .kpi.red    .kpi-value { color: var(--red); }
+    .kpi.orange .kpi-value { color: var(--orange); }
+    .kpi.yellow .kpi-value { color: var(--yellow); }
+    .kpi.teal   .kpi-value { color: var(--teal); }
+    .kpi.purple .kpi-value { color: var(--accent2); }
+    .kpi-sub { font-size: 11px; color: var(--text2); }
+
+    /* ── Section Grid ── */
+    .section-grid {
+      display: grid;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+    .cols-2 { grid-template-columns: 1fr 1fr; }
+    .cols-1-2 { grid-template-columns: 1fr 2fr; }
+    .cols-2-1 { grid-template-columns: 2fr 1fr; }
+
+    /* ── Card ── */
+    .card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      box-shadow: var(--shadow);
+    }
+    .card-title {
+      font-size: 11px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: .06em;
+      color: var(--text2);
+      margin-bottom: 10px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .card-title .dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--accent);
+    }
+
+    /* ── Table ── */
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 6px 8px; text-align: left; font-size: 12px; }
+    th { color: var(--text2); font-weight: 600; border-bottom: 1px solid var(--border); }
+    td { border-bottom: 1px solid rgba(26,45,80,.5); }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(37,99,235,.06); }
+    .num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+    .cc-badge {
+      display: inline-block;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1px 5px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .04em;
+    }
+    .ip-mono { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 11px; }
+    .path-mono { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 11px; color: var(--text2); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* ── Bar Chart ── */
+    .bar-list { display: flex; flex-direction: column; gap: 6px; }
+    .bar-item { display: flex; align-items: center; gap: 8px; }
+    .bar-label { font-size: 12px; min-width: 80px; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .bar-track { flex: 1; height: 8px; background: var(--bg3); border-radius: 4px; overflow: hidden; }
+    .bar-fill  { height: 100%; border-radius: 4px; background: var(--accent); transition: width .4s ease; }
+    .bar-fill.red    { background: var(--red); }
+    .bar-fill.orange { background: var(--orange); }
+    .bar-fill.teal   { background: var(--teal); }
+    .bar-fill.purple { background: var(--accent2); }
+    .bar-count { font-size: 11px; font-weight: 700; min-width: 32px; text-align: right; }
+
+    /* ── World Map ── */
+    #map-container {
+      position: relative;
+      background: var(--bg3);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    #world-map {
+      width: 100%;
+      height: 280px;
+      display: block;
+    }
+    .map-dot {
+      position: absolute;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      animation: pulse 2s ease-out infinite;
+    }
+    @keyframes pulse {
+      0%   { opacity: .9; }
+      100% { opacity: .3; }
+    }
+
+    /* ── Live Feed ── */
+    #live-feed {
+      height: 260px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    #live-feed::-webkit-scrollbar { width: 4px; }
+    #live-feed::-webkit-scrollbar-track { background: var(--bg3); }
+    #live-feed::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    .feed-item {
+      display: flex; align-items: flex-start; gap: 8px;
+      padding: 5px 8px;
+      border-radius: 6px;
+      background: var(--bg3);
+      font-size: 11px;
+      animation: fadeIn .3s ease;
+    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+    .feed-type {
+      font-size: 10px; font-weight: 700; letter-spacing: .04em;
+      padding: 1px 5px; border-radius: 3px;
+      white-space: nowrap; flex-shrink: 0;
+    }
+    .feed-type.http_block  { background: rgba(239,68,68,.2);  color: var(--red); }
+    .feed-type.ssh_fail    { background: rgba(249,115,22,.2); color: var(--orange); }
+    .feed-type.crowdsec_ban{ background: rgba(124,58,237,.2); color: var(--accent2); }
+    .feed-type.direct_ip   { background: rgba(234,179,8,.2);  color: var(--yellow); }
+    .feed-body { flex: 1; color: var(--text2); line-height: 1.4; }
+    .feed-body strong { color: var(--text); }
+    .feed-time { font-size: 10px; color: var(--muted); white-space: nowrap; flex-shrink: 0; }
+
+    /* ── Sparkline ── */
+    .sparkline { display: flex; align-items: flex-end; gap: 2px; height: 32px; margin-top: 6px; }
+    .spark-bar { flex: 1; background: var(--accent); border-radius: 2px 2px 0 0; min-height: 2px; opacity: .7; }
+
+    /* ── Tabs ── */
+    .tabs { display: flex; gap: 4px; margin-bottom: 10px; }
+    .map-filter-btn {
+      padding: 3px 9px; border-radius: 5px; font-size: 11px; font-weight: 600;
+      cursor: pointer; border: 1px solid var(--border);
+      background: transparent; color: var(--text2);
+      transition: background .15s, color .15s, border-color .15s;
+    }
+    .map-filter-btn:hover { background: var(--bg3); color: var(--text); }
+    .map-filter-btn.active {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+    }
+    .tab {
+      padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600;
+      cursor: pointer; border: 1px solid var(--border); background: transparent;
+      color: var(--text2); transition: all .15s;
+    }
+    .tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+    /* ── Responsive ── */
+    @media (max-width: 1100px) {
+      .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+      .cols-3   { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 750px) {
+      .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+      .cols-3, .cols-2, .cols-1-2, .cols-2-1 { grid-template-columns: 1fr; }
+    }
+
+    /* ── Info-Tooltip ── */
+    .info-btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 15px; height: 15px; border-radius: 50%;
+      background: rgba(100,116,139,0.3);
+      color: var(--text2);
+      font-size: 9px; font-weight: 700;
+      cursor: pointer;
+      vertical-align: middle;
+      margin-left: 4px;
+      flex-shrink: 0;
+      user-select: none;
+      border: none;
+      outline: none;
+    }
+    .info-btn:hover { background: rgba(37,99,235,0.5); color: #fff; }
+    /* Popup wird per JS positioniert und eingeblendet */
+    #info-popup-global {
+      display: none;
+      position: fixed;
+      min-width: 360px;
+      max-width: 480px;
+      background: #0d1628;
+      border: 2px solid var(--accent);
+      border-radius: 10px;
+      padding: 14px 16px;
+      box-shadow: 0 8px 32px rgba(0,0,0,.8), 0 0 0 1px rgba(37,99,235,0.3);
+      z-index: 9999;
+      text-align: left;
+      pointer-events: auto;
+    }
+    #info-popup-global.visible { display: block; }
+    .info-popup-title {
+      font-size: 13px; font-weight: 700; color: var(--text);
+      margin-bottom: 8px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border);
+    }
+    .info-popup-text {
+      font-size: 11px; color: var(--text2); line-height: 1.6;
+      margin-bottom: 10px;
+    }
+    .info-popup-cmd-wrap {
+      background: #080e1a;
+      overflow-x: hidden;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 10px;
+      margin-bottom: 8px;
+      overflow-x: auto;
+    }
+    .info-popup-cmd {
+      font-family: 'SF Mono', 'Fira Code', 'Courier New', monospace;
+      white-space: pre-wrap;
+      word-break: break-all;
+      overflow-wrap: anywhere;
+      font-size: 10px;
+      color: var(--green);
+      user-select: text;
+      cursor: text;
+      display: block;
+    }
+    .info-popup-cmd-label {
+      font-size: 10px; color: var(--muted); margin-bottom: 4px;
+      font-weight: 600; text-transform: uppercase; letter-spacing: .04em;
+    }
+
+    /* ── Scan-Banner ── */
+    #scan-banner {
+      display: none;
+      background: linear-gradient(90deg, rgba(37,99,235,0.15), rgba(124,58,237,0.15));
+      border-bottom: 1px solid var(--border);
+      padding: 8px 20px;
+      font-size: 12px;
+      color: var(--text2);
+      align-items: center;
+      gap: 12px;
+    }
+    #scan-banner.visible { display: flex; }
+    #scan-banner .scan-icon { font-size: 16px; animation: spin 1.5s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #scan-progress-track {
+      flex: 1; height: 6px;
+      background: var(--bg3);
+      border-radius: 3px;
+      overflow: hidden;
+      max-width: 300px;
+    }
+    #scan-progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      border-radius: 3px;
+      transition: width 0.5s ease;
+      width: 0%;
+    }
+    #scan-text { white-space: nowrap; }
+
+    /* ── Misc ── */
+    .empty { color: var(--muted); font-size: 12px; padding: 8px 0; }
+    .tag {
+      display: inline-block; padding: 1px 6px; border-radius: 4px;
+      font-size: 10px; font-weight: 700;
+    }
+    .tag.red    { background: rgba(239,68,68,.15);  color: var(--red); }
+    .tag.orange { background: rgba(249,115,22,.15); color: var(--orange); }
+    .tag.green  { background: rgba(34,197,94,.15);  color: var(--green); }
+    .tag.purple { background: rgba(124,58,237,.15); color: var(--accent2); }
+    .tag.teal   { background: rgba(20,184,166,.15); color: var(--teal); }
+    .tag.yellow { background: rgba(234,179,8,.15);  color: var(--yellow); }
+    .section-title {
+      font-size: 12px; font-weight: 700; color: var(--text2);
+      text-transform: uppercase; letter-spacing: .06em;
+      margin: 16px 0 8px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .section-title::after {
+      content: ''; flex: 1; height: 1px; background: var(--border);
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>
+    <span class="icon">🛡️</span>
+    Attack Dashboard
+    <span style="color:var(--text2);font-weight:400;font-size:13px">Pi5 · Traefik + CrowdSec + nftables</span>
+  </h1>
+  <div class="header-right">
+    <div class="window-toggle">
+      <button id="btn-24h" class="active" data-window="24">24h</button>
+      <button id="btn-7d" data-window="168">7d</button>
+    </div>
+    <span id="last-update">–</span>
+    <div id="status-dot"></div>
+  </div>
+</header>
+
+<!-- ── Scan-Banner ── -->
+<div id="scan-banner">
+  <span class="scan-icon">⚙️</span>
+  <span id="scan-text">Lese Log-Datei …</span>
+  <div id="scan-progress-track">
+    <div id="scan-progress-fill"></div>
+  </div>
+  <span id="scan-pct" style="font-size:11px;font-weight:700;color:var(--accent);min-width:36px;text-align:right"></span>
+</div>
+
+<main>
+
+  <!-- ── KPI Row ── -->
+  <div class="kpi-grid">
+    <div class="kpi red">
+      <div class="kpi-label" style="display:flex;align-items:center;gap:4px">
+        HTTP Geblockt (<span id="lbl-http">24h</span>)
+        <button class="info-btn" data-info="http-blocked">?</button>
+      </div>
+      <div class="kpi-value" id="k-b24">–</div>
+      <div class="kpi-sub"><span id="k-b1h">–</span> <span id="lbl-sub1-b">letzte Stunde</span> · <span id="k-b10m">–</span> <span id="lbl-sub2-b">letzte 10 min</span></div>
+    </div>
+    <div class="kpi purple">
+      <div class="kpi-label" style="display:flex;align-items:center;gap:4px">
+        CrowdSec Bans lokal (<span id="lbl-cs">24h</span>)
+        <button class="info-btn" data-info="crowdsec-bans">?</button>
+      </div>
+      <div class="kpi-value" id="k-cs24">–</div>
+      <div class="kpi-sub">
+        <span id="k-cs1h">–</span> <span id="lbl-sub1-cs">letzte Stunde</span> ·
+        <span id="k-cs10m">–</span> <span id="lbl-sub2-cs">letzte 10 min</span><br>
+        <span title="Lokal erkannt (eigene Szenarien)">🔴 <strong id="k-cs-active-local">–</strong> lokal aktiv</span> ·
+        <span title="Community-Blocklist (CAPI)">🟡 <strong id="k-cs-active-capi">–</strong> CAPI</span>
+      </div>
+    </div>
+    <div class="kpi yellow">
+      <div class="kpi-label" style="display:flex;align-items:center;gap:4px">
+        Direct-IP Hits (<span id="lbl-direct">24h</span>)
+        <button class="info-btn" data-info="direct-ip">?</button>
+      </div>
+      <div class="kpi-value" id="k-d24">–</div>
+      <div class="kpi-sub"><span id="k-d1h">–</span> <span id="lbl-sub1-d">letzte Stunde</span> · <span id="k-d10m">–</span> <span id="lbl-sub2-d">letzte 10 min</span></div>
+    </div>
+    <div class="kpi teal">
+      <div class="kpi-label" style="display:flex;align-items:center;gap:4px">
+        Alle Requests (<span id="lbl-all">24h</span>)
+        <button class="info-btn" data-info="all-requests">?</button>
+      </div>
+      <div class="kpi-value" id="k-a24">–</div>
+      <div class="kpi-sub"><span id="k-a1h">–</span> <span id="lbl-sub1-a">letzte Stunde</span> · <span id="k-a10m">–</span> <span id="lbl-sub2-a">letzte 10 min</span></div>
+    </div>
+  </div>
+
+  <!-- ── Weltkarte + Live Feed ── -->
+  <div class="section-grid cols-2-1" style="margin-bottom:12px">
+    <div class="card">
+      <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <span><span class="dot" style="background:var(--red)"></span>Angriffs-Weltkarte (<span id="lbl-map">24h</span>)</span>
+        <span id="map-filter-btns" style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="map-filter-btn active" data-filter="all">Alle</button>
+          <button class="map-filter-btn" data-filter="http" style="--fc:var(--red)">■ HTTP Block</button>
+          <button class="map-filter-btn" data-filter="direct" style="--fc:var(--yellow)">■ Direct-IP</button>
+          <button class="map-filter-btn" data-filter="cs" style="--fc:var(--accent2)">■ CrowdSec</button>
+        </span>
+      </div>
+      <div id="map-container">
+        <canvas id="world-map"></canvas>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">
+        <span class="dot" style="background:var(--green)"></span>
+        Live-Feed (<span id="lbl-feed">24h</span>)
+        <button class="info-btn" data-info="live-feed" style="margin-left:4px">?</button>
+      </div>
+      <div id="live-feed"></div>
+    </div>
+  </div>
+
+  <!-- ── Länder + IPs + Hosts ── -->
+  <div class="section-grid cols-3">
+    <div class="card">
+      <div class="card-title">
+        <span class="dot" style="background:var(--orange)"></span>Top Länder (24h)
+      </div>
+      <div id="chart-countries" class="bar-list"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">
+        <span class="dot" style="background:var(--red)"></span>Top geblockte IPs (24h)
+        <button class="info-btn" data-info="top-blocked-ips" style="margin-left:4px">?</button>
+      </div>
+      <table>
+        <thead><tr><th>IP</th><th>Land</th><th class="num">Hits</th></tr></thead>
+        <tbody id="tb-ips-blocked"></tbody>
+      </table>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--teal)"></span>Top Hosts / Ziele (24h)</div>
+      <div id="chart-hosts" class="bar-list"></div>
+    </div>
+  </div>
+
+  <!-- ── Angriffsmuster ── -->
+  <div class="section-title">Angriffsmuster</div>
+  <div class="section-grid cols-3">
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--yellow)"></span>Top Angriffs-Pfade (<span id="lbl-paths">24h</span>)</div>
+      <table>
+        <thead><tr><th>Pfad</th><th class="num">Hits</th></tr></thead>
+        <tbody id="tb-paths"></tbody>
+      </table>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--accent)"></span>HTTP Methoden (<span id="lbl-methods">24h</span>)</div>
+      <div id="chart-methods" class="bar-list"></div>
+      <div style="margin-top:14px">
+        <div class="card-title" style="margin-bottom:8px"><span class="dot" style="background:var(--orange)"></span>Status Codes (<span id="lbl-status">24h</span>)</div>
+        <div id="chart-statuscodes" class="bar-list"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--accent2)"></span>CrowdSec – Erkannte Szenarien (<span id="lbl-scenarios">24h</span>)</div>
+      <div id="chart-cs-reasons" class="bar-list"></div>
+      <div style="margin-top:14px">
+        <div class="card-title" style="margin-bottom:8px"><span class="dot" style="background:var(--accent2)"></span>Top CrowdSec IPs (<span id="lbl-cs-ips">24h</span>)</div>
+        <table>
+          <thead><tr><th>IP</th><th>Land</th><th class="num">Bans</th></tr></thead>
+          <tbody id="tb-cs-ips"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Direct IP ── -->
+  <div class="section-title">Direkte IP-Angriffe</div>
+  <div class="section-grid cols-2">
+    <div class="card">
+      <div class="card-title">
+        <span class="dot" style="background:var(--yellow)"></span>Direct-IP Quell-IPs (<span id="lbl-dir-ips">24h</span>)
+        <button class="info-btn" data-info="top-direct-ips" style="margin-left:4px">?</button>
+      </div>
+      <table>
+        <thead><tr><th>IP</th><th>Land</th><th class="num">Hits</th></tr></thead>
+        <tbody id="tb-dir-ips"></tbody>
+      </table>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--yellow)"></span>IP-Versionen (<span id="lbl-ip-ver">24h</span>)</div>
+      <div id="chart-dir-ver" class="bar-list"></div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+// ─── Utilities ────────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const fmt = n => (n === undefined || n === null) ? '–' : n.toLocaleString('de-DE');
+
+function timeAgo(ts) {
+  const s = Math.floor(Date.now()/1000 - ts);
+  if (s < 5)  return 'gerade';
+  if (s < 60) return `${s}s`;
+  if (s < 3600) return `${Math.floor(s/60)}m`;
+  return `${Math.floor(s/3600)}h`;
+}
+
+function fillTable(tbodyId, rows, cols) {
+  const tb = $(tbodyId);
+  if (!tb) return;
+  tb.innerHTML = '';
+  if (!rows || rows.length === 0) {
+    const tr = document.createElement('tr');
+    const td = document.createElement('td');
+    td.colSpan = cols || 3;
+    td.textContent = '(keine Daten)';
+    td.className = 'empty';
+    tr.appendChild(td);
+    tb.appendChild(tr);
+    return;
+  }
+  for (const row of rows) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = row;
+    tb.appendChild(tr);
+  }
+}
+
+function barChart(containerId, items, maxVal, colorClass) {
+  const el = $(containerId);
+  if (!el) return;
+  el.innerHTML = '';
+  if (!items || items.length === 0) {
+    el.innerHTML = '<div class="empty">(keine Daten)</div>';
+    return;
+  }
+  const max = maxVal || Math.max(...items.map(i => i[1])) || 1;
+  for (const [label, count] of items) {
+    const pct = Math.max(2, Math.round(count / max * 100));
+    el.innerHTML += `
+      <div class="bar-item">
+        <div class="bar-label" title="${label}">${label}</div>
+        <div class="bar-track"><div class="bar-fill ${colorClass||''}" style="width:${pct}%"></div></div>
+        <div class="bar-count">${fmt(count)}</div>
+      </div>`;
+  }
+}
+
+function statusColor(st) {
+  if (st.startsWith('4')) return 'orange';
+  if (st.startsWith('5')) return 'red';
+  if (st.startsWith('2')) return 'green';
+  return '';
+}
+
+// ─── Weltkarte ────────────────────────────────────────────────────────────────
+// Equirectangular-Projektion mit GeoJSON-Ländergrenzen
+const MAP_W = 1000, MAP_H = 500;
+let mapPoints  = [];      // alle Punkte (http + direct + cs)
+let typeFilter = 'all';   // 'all' | 'http' | 'direct' | 'cs'  – steuert Karte + Länder
+let worldGeo   = null;    // GeoJSON FeatureCollection
+
+// Farben je Typ
+const MAP_COLORS = {
+  http:   { fill: 'rgba(239,68,68,0.75)',   stroke: 'rgba(239,68,68,0.3)'   },  // rot
+  direct: { fill: 'rgba(234,179,8,0.75)',   stroke: 'rgba(234,179,8,0.3)'   },  // gelb
+  cs:     { fill: 'rgba(167,139,250,0.75)', stroke: 'rgba(167,139,250,0.3)' },  // lila
+};
+
+// Koordinaten-Umrechnung: Lat/Lon → Canvas-Pixel
+function latLonToXY(lat, lon, W, H) {
+  const x = (lon + 180) / 360 * W;
+  const y = (90  - lat) / 180 * H;
+  return [x, y];
+}
+
+// GeoJSON-Polygon auf Canvas zeichnen
+function drawPolygon(ctx, coords, W, H) {
+  if (!coords || coords.length === 0) return;
+  ctx.beginPath();
+  for (let i = 0; i < coords.length; i++) {
+    const [lon, lat] = coords[i];
+    const [x, y] = latLonToXY(lat, lon, W, H);
+    if (i === 0) ctx.moveTo(x, y);
+    else         ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+}
+
+function drawGeoJSON(ctx, geo, W, H) {
+  if (!geo || !geo.features) return;
+  ctx.fillStyle   = '#1e3a5f';   // Landfläche (heller)
+  ctx.strokeStyle = '#2d5a8e';   // Ländergrenzen (heller)
+  ctx.lineWidth   = 0.6;
+
+  for (const feature of geo.features) {
+    const geom = feature.geometry;
+    if (!geom) continue;
+
+    if (geom.type === 'Polygon') {
+      for (const ring of geom.coordinates) {
+        drawPolygon(ctx, ring, W, H);
+        ctx.fill();
+        ctx.stroke();
+      }
+    } else if (geom.type === 'MultiPolygon') {
+      for (const poly of geom.coordinates) {
+        for (const ring of poly) {
+          drawPolygon(ctx, ring, W, H);
+          ctx.fill();
+          ctx.stroke();
+        }
+      }
+    }
+  }
+}
+
+function drawGrid(ctx, W, H) {
+  // Gitterlinien
+  ctx.strokeStyle = 'rgba(45,90,142,0.4)';
+  ctx.lineWidth   = 0.4;
+  for (let lon = -180; lon <= 180; lon += 30) {
+    const [x] = latLonToXY(0, lon, W, H);
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+  }
+  for (let lat = -90; lat <= 90; lat += 30) {
+    const [, y] = latLonToXY(lat, 0, W, H);
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+  }
+  // Äquator + Nullmeridian hervorheben
+  ctx.strokeStyle = 'rgba(59,130,246,0.35)';
+  ctx.lineWidth   = 0.8;
+  const [, eqY] = latLonToXY(0, 0, W, H);
+  ctx.beginPath(); ctx.moveTo(0, eqY); ctx.lineTo(W, eqY); ctx.stroke();
+  const [pmX]   = latLonToXY(0, 0, W, H);
+  ctx.beginPath(); ctx.moveTo(pmX, 0); ctx.lineTo(pmX, H); ctx.stroke();
+}
+
+function drawAttackPoints(ctx, W, H) {
+  const visible = typeFilter === 'all'
+    ? mapPoints
+    : mapPoints.filter(p => p.type === typeFilter);
+  if (visible.length === 0) return;
+  const maxCount = Math.max(...visible.map(p => p.count));
+  for (const pt of visible) {
+    const col = MAP_COLORS[pt.type] || MAP_COLORS.http;
+    const [x, y] = latLonToXY(pt.lat, pt.lon, W, H);
+    const ratio  = pt.count / maxCount;
+    const r      = Math.max(3, Math.min(22, 3 + Math.sqrt(ratio) * 19));
+    const alpha  = 0.35 + 0.55 * ratio;
+
+    // Äußerer Glow
+    // Farbe aus col extrahieren (z.B. 'rgba(239,68,68,0.75)' → '239,68,68')
+    const rgb = col.fill.match(/rgba?\((\d+),(\d+),(\d+)/);
+    const [, cr, cg, cb] = rgb || [0, 239, 68, 68];
+    const grad = ctx.createRadialGradient(x, y, 0, x, y, r * 3);
+    grad.addColorStop(0,   `rgba(${cr},${cg},${cb},${(alpha * 0.7).toFixed(2)})`);
+    grad.addColorStop(0.4, `rgba(${cr},${cg},${cb},${(alpha * 0.3).toFixed(2)})`);
+    grad.addColorStop(1,   `rgba(${cr},${cg},${cb},0)`);
+    ctx.beginPath();
+    ctx.arc(x, y, r * 3, 0, Math.PI * 2);
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // Innerer Kern
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(${cr},${cg},${cb},${Math.min(1, alpha + 0.2).toFixed(2)})`;
+    ctx.fill();
+
+    // Weißer Mittelpunkt
+    ctx.beginPath();
+    ctx.arc(x, y, Math.max(1, r * 0.3), 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255,255,255,${(alpha * 0.8).toFixed(2)})`;
+    ctx.fill();
+  }
+}
+
+function drawMap() {
+  const canvas = $('world-map');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+
+  // Ozean-Hintergrund
+  ctx.fillStyle = '#0d1e3a';
+  ctx.fillRect(0, 0, W, H);
+
+  // Gitterlinien (unter den Ländern)
+  drawGrid(ctx, W, H);
+
+  // Ländergrenzen aus GeoJSON
+  if (worldGeo) {
+    drawGeoJSON(ctx, worldGeo, W, H);
+  }
+
+  // Angriffs-Punkte
+  drawAttackPoints(ctx, W, H);
+
+  // Platzhalter-Text wenn keine Daten
+  if (mapPoints.length === 0) {
+    ctx.fillStyle   = 'rgba(100,116,139,0.6)';
+    ctx.font        = '13px system-ui';
+    ctx.textAlign   = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(worldGeo ? 'Warte auf Angriffsdaten …' : 'Lade Weltkarte …', W / 2, H / 2);
+  }
+}
+
+async function initMap() {
+  const canvas = $('world-map');
+  canvas.width  = MAP_W;
+  canvas.height = MAP_H;
+  drawMap();   // Sofort mit Gitterlinien zeichnen
+
+  // GeoJSON asynchron laden
+  try {
+    const r = await fetch('/api/world.geojson', { cache: 'no-cache' });
+    if (r.ok) {
+      worldGeo = await r.json();
+      drawMap();
+    }
+  } catch (e) {
+    console.warn('Weltkarte konnte nicht geladen werden:', e);
+  }
+}
+
+// ─── Live Feed ────────────────────────────────────────────────────────────────
+const TYPE_LABELS = {
+  http_block:   'HTTP BLOCK',
+  ssh_fail:     'SSH FAIL',
+  crowdsec_ban: 'CROWDSEC BAN',
+  direct_ip:    'DIRECT IP',
+};
+
+function addFeedItem(ev) {
+  const feed = $('live-feed');
+  if (!feed) return;
+  const typeLabel = TYPE_LABELS[ev.type] || ev.type.toUpperCase();
+  let body = '';
+  if (ev.type === 'http_block') {
+    const intTag = ev.internal ? ' <span class="tag" style="background:rgba(99,102,241,.2);color:#818cf8" title="Interne/Docker-IP">🏠 INT</span>' : '';
+    body = `<strong>${ev.ip}</strong>${intTag} <span class="cc-badge">${ev.cc||'??'}</span> → <em>${ev.host||'?'}</em> <span class="tag orange">${ev.status}</span> <span class="path-mono">${ev.path||''}</span>`;
+  } else if (ev.type === 'ssh_fail') {
+    body = `<strong>${ev.ip}</strong> → user: <em>${ev.user||'?'}</em>`;
+  } else if (ev.type === 'crowdsec_ban') {
+    body = `<strong>${ev.ip}</strong> gebannt · <em>${ev.reason||'?'}</em> · ${ev.duration||''}`;
+  } else if (ev.type === 'direct_ip') {
+    body = `<strong>${ev.ip}</strong> → <em>${ev.target||'?'}</em> <span class="tag yellow">${ev.ipver||''}</span>`;
+  } else {
+    body = JSON.stringify(ev);
+  }
+
+  const div = document.createElement('div');
+  div.className = 'feed-item';
+  div.innerHTML = `
+    <span class="feed-type ${ev.type}">${typeLabel}</span>
+    <span class="feed-body">${body}</span>
+    <span class="feed-time">${timeAgo(ev.ts)}</span>`;
+  feed.insertBefore(div, feed.firstChild);
+
+  // Max 60 Items
+  while (feed.children.length > 60) feed.removeChild(feed.lastChild);
+}
+
+// ─── Scan-Banner ──────────────────────────────────────────────────────────────
+function updateScanBanner(sp) {
+  const banner = $('scan-banner');
+  if (!banner) return;
+  if (!sp || !sp.scanning) {
+    banner.classList.remove('visible');
+    return;
+  }
+  banner.classList.add('visible');
+  const scanned = sp.scanned || 0;
+  const total   = sp.total   || 0;
+  const skipped = sp.skipped || 0;
+  const pct     = total > 0 ? Math.min(99, Math.round(scanned / total * 100)) : 0;
+  $('scan-text').textContent =
+    `Lese Log-Datei … ${scanned.toLocaleString('de-DE')} Zeilen (letzte 24h) · ${skipped.toLocaleString('de-DE')} übersprungen`;
+  $('scan-progress-fill').style.width = pct + '%';
+  $('scan-pct').textContent = pct + '%';
+}
+
+// ─── Stats Rendering ──────────────────────────────────────────────────────────
+function renderStats(s) {
+  // Update time window labels
+  const windowLabel = currentWindow === 24 ? '24h' : '7d';
+  document.getElementById('lbl-http').textContent = windowLabel;
+  document.getElementById('lbl-cs').textContent = windowLabel;
+  document.getElementById('lbl-direct').textContent = windowLabel;
+  document.getElementById('lbl-all').textContent = windowLabel;
+  document.getElementById('lbl-map').textContent = windowLabel;
+  document.getElementById('lbl-feed').textContent = windowLabel;
+  document.getElementById('lbl-paths').textContent = windowLabel;
+  document.getElementById('lbl-methods').textContent = windowLabel;
+  document.getElementById('lbl-status').textContent = windowLabel;
+  document.getElementById('lbl-scenarios').textContent = windowLabel;
+  document.getElementById('lbl-cs-ips').textContent = windowLabel;
+  document.getElementById('lbl-dir-ips').textContent = windowLabel;
+  document.getElementById('lbl-ip-ver').textContent = windowLabel;
+
+  // Scan-Banner
+  updateScanBanner(s.scanProgress);
+
+  // KPIs - dynamische Keys je nach Zeitfenster
+  const is7d = currentWindow === 168;
+  const sub1Key = is7d ? '1d' : '1h';
+  const sub2Key = is7d ? '1h' : '10m';
+  const sub1Label = is7d ? 'letzter Tag' : 'letzte Stunde';
+  const sub2Label = is7d ? 'letzte Stunde' : 'letzte 10 min';
+  
+  $('k-b24').textContent  = fmt(s.countsHttpBlocked['24h']);
+  $('k-b1h').textContent  = fmt(s.countsHttpBlocked[sub1Key] || 0);
+  $('k-b10m').textContent = fmt(s.countsHttpBlocked[sub2Key] || 0);
+
+  $('k-cs24').textContent          = fmt(s.countsCrowdSec['24h']);
+  $('k-cs1h').textContent          = fmt(s.countsCrowdSec[sub1Key] || 0);
+  $('k-cs10m').textContent         = fmt(s.countsCrowdSec[sub2Key] || 0);
+  $('k-cs-active-local').textContent = fmt(s.countsCrowdSec['active_local']);
+  $('k-cs-active-capi').textContent  = fmt(s.countsCrowdSec['active_capi']);
+
+  $('k-d24').textContent  = fmt(s.countsDirectIP['24h']);
+  $('k-d1h').textContent  = fmt(s.countsDirectIP[sub1Key] || 0);
+  $('k-d10m').textContent = fmt(s.countsDirectIP[sub2Key] || 0);
+
+  $('k-a24').textContent  = fmt(s.countsHttpAll['24h']);
+  $('k-a1h').textContent  = fmt(s.countsHttpAll[sub1Key] || 0);
+  $('k-a10m').textContent = fmt(s.countsHttpAll[sub2Key] || 0);
+  
+  // Update sub-labels
+  document.getElementById('lbl-sub1-b').textContent = sub1Label;
+  document.getElementById('lbl-sub2-b').textContent = sub2Label;
+  document.getElementById('lbl-sub1-cs').textContent = sub1Label;
+  document.getElementById('lbl-sub2-cs').textContent = sub2Label;
+  document.getElementById('lbl-sub1-d').textContent = sub1Label;
+  document.getElementById('lbl-sub2-d').textContent = sub2Label;
+  document.getElementById('lbl-sub1-a').textContent = sub1Label;
+  document.getElementById('lbl-sub2-a').textContent = sub2Label;
+
+  // Letzten Stats für Filter-Re-Render speichern
+  window._lastStats = s;
+
+  // Weltkarte
+  mapPoints = s.mapPoints || [];
+  drawMap();
+
+  // Länder-Balken (je nach typeFilter; 'all' → alle Quellen zusammen)
+  const ccData = typeFilter === 'direct' ? s.topCountriesDirect
+               : typeFilter === 'cs'     ? s.topCountriesCS
+               : typeFilter === 'http'   ? s.topCountries
+               :                           s.topCountriesAll;
+  const ccColor = typeFilter === 'direct' ? 'yellow'
+                : typeFilter === 'cs'     ? 'purple'
+                : typeFilter === 'http'   ? 'red'
+                :                           'orange';
+  barChart('chart-countries', ccData, null, ccColor);
+
+  // Hosts-Balken
+  barChart('chart-hosts', s.topHosts, null, 'teal');
+
+  // Methoden
+  barChart('chart-methods', s.topMethods, null, '');
+
+  // Status Codes
+  barChart('chart-statuscodes', s.topStatusCodes, null, 'orange');
+
+  // CrowdSec Szenarien
+  barChart('chart-cs-reasons', s.topCrowdSecReasons, null, 'purple');
+
+  // Direct IP Versionen
+  barChart('chart-dir-ver', s.topDirectIPVer, null, 'yellow');
+
+  // Tabelle: geblockte IPs
+  fillTable('tb-ips-blocked',
+    (s.topIPsBlocked || []).map(([ip, cnt, cc, cname, internal]) =>
+      `<td class="ip-mono">${ip}${internal ? ' <span class="tag" style="background:rgba(99,102,241,.2);color:#818cf8;font-size:9px" title="Interne/Docker-IP – prüfe Middleware-Konfiguration">🏠</span>' : ''}</td><td><span class="cc-badge">${cc}</span>${cname ? ' <span style="color:var(--text2);font-size:11px">'+cname+'</span>' : ''}</td><td class="num">${fmt(cnt)}</td>`
+    ), 3);
+
+  // Tabelle: Pfade
+  fillTable('tb-paths',
+    (s.topPaths || []).map(([path, cnt]) =>
+      `<td class="path-mono" title="${path}">${path}</td><td class="num">${fmt(cnt)}</td>`
+    ), 2);
+
+  // Tabelle: CrowdSec IPs
+  fillTable('tb-cs-ips',
+    (s.topCrowdSecIPs || []).map(([ip, cnt, cc, cname, internal]) =>
+      `<td class="ip-mono">${ip}${internal ? ' <span class="tag" style="background:rgba(99,102,241,.2);color:#818cf8;font-size:9px">🏠</span>' : ''}</td><td><span class="cc-badge">${cc}</span></td><td class="num">${fmt(cnt)}</td>`
+    ), 3);
+
+  // Tabelle: Direct IP Quellen
+  fillTable('tb-dir-ips',
+    (s.topDirectIPSrc || []).map(([ip, cnt, cc, cname, internal]) =>
+      `<td class="ip-mono">${ip}${internal ? ' <span class="tag" style="background:rgba(99,102,241,.2);color:#818cf8;font-size:9px">🏠</span>' : ''}</td><td><span class="cc-badge">${cc}</span></td><td class="num">${fmt(cnt)}</td>`
+    ), 3);
+
+  // Live Feed aus Stats (initiales Befüllen)
+  if (s.liveFeed && s.liveFeed.length > 0) {
+    const feed = $('live-feed');
+    if (feed && feed.children.length === 0) {
+      // Nur beim ersten Laden
+      for (const ev of [...s.liveFeed].reverse()) {
+        addFeedItem(ev);
+      }
+    }
+  }
+}
+
+// ─── Window Toggle (24h / 7d) ─────────────────────────────────────────────────
+let currentWindow = parseInt(localStorage.getItem('attackDashboardWindow') || '24');
+
+function setWindow(hours) {
+  currentWindow = hours;
+  localStorage.setItem('attackDashboardWindow', hours);
+  
+  // Button-States aktualisieren
+  document.querySelectorAll('.window-toggle button').forEach(btn => {
+    btn.classList.toggle('active', parseInt(btn.dataset.window) === hours);
+  });
+  
+  // Sofort neu laden
+  refresh();
+}
+
+function initWindowToggle() {
+  // Gespeicherte Auswahl wiederherstellen
+  document.querySelectorAll('.window-toggle button').forEach(btn => {
+    btn.classList.toggle('active', parseInt(btn.dataset.window) === currentWindow);
+    btn.addEventListener('click', () => {
+      setWindow(parseInt(btn.dataset.window));
+    });
+  });
+}
+
+// ─── Polling ──────────────────────────────────────────────────────────────────
+let lastFeedTs = 0;
+
+async function refresh() {
+  try {
+    const r = await fetch(`/api/stats?window=${currentWindow}`, { cache: 'no-store' });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const s = await r.json();
+    renderStats(s);
+
+    // Neue Live-Events verarbeiten
+    if (s.liveFeed) {
+      for (const ev of s.liveFeed) {
+        if (ev.ts > lastFeedTs) {
+          addFeedItem(ev);
+          lastFeedTs = ev.ts;
+        }
+      }
+    }
+
+    $('status-dot').className = 'ok';
+    const windowLabel = currentWindow === 24 ? '24h' : '7d';
+    $('last-update').textContent = `Aktualisiert: ${new Date().toLocaleTimeString('de-DE')} (${windowLabel})`;
+  } catch (e) {
+    $('status-dot').className = 'err';
+    $('last-update').textContent = 'Fehler: ' + e.message;
+  }
+}
+
+// ─── Info-Popups ──────────────────────────────────────────────────────────────
+const LOG = '/home/hajo/docker/traefik/logs/access.json';
+const CS_LOG = 'docker exec crowdsec cscli';
+
+const INFO_CONTENT = {
+  'http-blocked': `
+    <div class="info-popup-title">🔴 HTTP Geblockt (24h)</div>
+    <div class="info-popup-text">
+      Zählt HTTP-Requests die Traefik mit Status <strong>403</strong> (CrowdSec-Ban)
+      oder <strong>451</strong> (GeoIP-Block) beantwortet hat.<br><br>
+      📄 Quelle: <code style="font-size:10px;color:var(--teal)">${LOG}</code>
+    </div>
+    <div class="info-popup-cmd-label">Anzahl geblockte Requests:</div>
+    <div class="info-popup-cmd-wrap">
+      <div class="info-popup-cmd">grep -cE '"DownstreamStatus":(403|451)' \</div>
+      <div class="info-popup-cmd">  ${LOG}</div>
+    </div>
+    <div class="info-popup-cmd-label">Letzte 10 geblockte IPs:</div>
+    <div class="info-popup-cmd-wrap">
+      <div class="info-popup-cmd">grep -E '"DownstreamStatus":(403|451)' \</div>
+      <div class="info-popup-cmd">  ${LOG} | tail -10 \</div>
+      <div class="info-popup-cmd">  | jq -r '.ClientHost + " → " + .RequestHost'</div>
+    </div>
+  `,
+
+  'crowdsec-bans': `
+    <div class="info-popup-title">🟣 CrowdSec Bans lokal (24h)</div>
+    <div class="info-popup-text">
+      Zählt IPs die CrowdSec <strong>selbst erkannt</strong> und gebannt hat
+      (origin=<code style="color:var(--accent2)">crowdsec</code>).<br>
+      <em>Nicht enthalten:</em> Community-Blocklist (CAPI) – die wird separat
+      als <strong>CAPI</strong>-Zähler angezeigt.<br>
+      <em>Hinweis:</em> <code>cscli decisions list</code> zeigt nur lokale Bans,
+      CAPI-Einträge sind dort nicht sichtbar.<br><br>
+      📄 Quelle: CrowdSec LAPI <code style="font-size:10px;color:var(--teal)">http://crowdsec:8080/v1/decisions</code>
+    </div>
+    <div class="info-popup-cmd-label">Lokale Bans anzeigen:</div>
+    <div class="info-popup-cmd-wrap">
+      <div class="info-popup-cmd">${CS_LOG} decisions list</div>
+    </div>
+    <div class="info-popup-cmd-label">Erkannte Szenarien (Alerts):</div>
+    <div class="info-popup-cmd-wrap">
+      <div class="info-popup-cmd">${CS_LOG} alerts list --limit 20</div>
+    </div>
+    <div class="info-popup-cmd-label">CAPI-Blocklist (Community) – Anzahl:</div>
+    <div class="info-popup-cmd-wrap">
+      <div class="info-popup-cmd">${CS_LOG} decisions list -o json \</div>
+      <div class="info-popup-cmd">  | jq '[.[]|select(.origin=="CAPI")]|length'</div>
+    </div>
+  `,
+
+  'direct-ip': `
+    <div class="info-popup-title">🟡 Direct-IP Hits (24h)</div>
+    <div class="info-popup-text">
+      Requests bei denen der <strong>Host-Header eine IP-Adresse</strong> ist
+      (statt eines Domainnamens).<br>
+      Das ist ein typisches Zeichen für automatisierte Scanner und Bots,
+      die direkt die IP ansprechen ohne den Hostnamen zu kennen.<br><br>
+      📄 Quelle: Traefik Access Log (Feld <code style="color:var(--teal)">RequestHost</code>)
+    </div>
+    <div class="info-popup-cmd-label">Direct-IP Hits anzeigen:</div>
+    <div class="info-popup-cmd-wrap">
+      <div class="info-popup-cmd">grep -cE '"RequestHost":"[0-9]+\.[0-9]+' \</div>
+      <div class="info-popup-cmd">  ${LOG}</div>
+    </div>
+    <div class="info-popup-cmd-label">Top Scanner-IPs:</div>
+    <div class="info-popup-cmd-wrap">
+      <div class="info-popup-cmd">grep -oE '"ClientHost":"[^"]+"' ${LOG} \</div>
+      <div class="info-popup-cmd">  | cut -d'"' -f4 | sort | uniq -c \</div>
+      <div class="info-popup-cmd">  | sort -rn | head -10</div>
+    </div>
+  `,
+
+  'live-feed': `
+    <div class="info-popup-title">🟢 Live-Feed</div>
+    <div class="info-popup-text">
+      Zeigt die letzten Ereignisse in Echtzeit (max. 60 Einträge).<br><br>
+      <span style="color:var(--red)">■ HTTP BLOCK</span> – Traefik 403/451<br>
+      <span style="color:var(--yellow)">■ DIRECT IP</span> – IP als Host-Header (Scanner)<br>
+      <span style="color:var(--accent2)">■ CROWDSEC BAN</span> – neue IP gebannt<br>
+      <span style="color:var(--orange)">■ SSH FAIL</span> – fehlgeschlagener Login<br><br>
+      <em>DIRECT IP ≠ geblockt</em> (kann auch 200/301/404 sein)
+    </div>
+    <div class="info-popup-cmd-label">HTTP BLOCK live verfolgen:</div>
+    <div class="info-popup-cmd-wrap">
+      <div class="info-popup-cmd">tail -f ${LOG} \</div>
+      <div class="info-popup-cmd">  | grep -E '"DownstreamStatus":(403|451)' \</div>
+      <div class="info-popup-cmd">  | jq -r '.ClientHost + " → " + .RequestHost'</div>
+    </div>
+    <div class="info-popup-cmd-label">DIRECT IP Scanner live:</div>
+    <div class="info-popup-cmd-wrap">
+      <div class="info-popup-cmd">tail -f ${LOG} \</div>
+      <div class="info-popup-cmd">  | grep -oE '"ClientHost":"[^"]+"' \</div>
+      <div class="info-popup-cmd">  | cut -d'"' -f4 | sort | uniq -c</div>
+    </div>
+    <div class="info-popup-cmd-label">CROWDSEC aktive Bans:</div>
+    <div class="info-popup-cmd-wrap"><div class="info-popup-cmd">${CS_LOG} decisions list</div></div>
+  `,
+
+  'top-blocked-ips': `
+    <div class="info-popup-title">🔴 Top geblockte IPs (24h)</div>
+    <div class="info-popup-text">
+      IPs die am häufigsten von Traefik mit <strong>HTTP 403 oder 451</strong> geblockt wurden.<br><br>
+      <strong>Warum kann eine IP mehrfach auftauchen?</strong><br>
+      Traefik blockt auf Middleware-Ebene (z.B. GeoBlock, CrowdSec-Bouncer).
+      Jeder einzelne Request wird geblockt – die IP wird aber <em>nicht</em> dauerhaft gesperrt,
+      solange kein aktiver CrowdSec-Ban vorliegt. Scanner wiederholen ihre Requests
+      automatisch, daher können viele Hits von derselben IP kommen.<br><br>
+      📄 Quelle: Traefik Access Log, Status 403/451
+    </div>
+    <div class="info-popup-cmd-label">Top geblockte IPs (letzten 24h):</div>
+    <div class="info-popup-cmd-wrap">
+      <div class="info-popup-cmd">jq -r 'select(.DownstreamStatus==403 or</div>
+      <div class="info-popup-cmd">  .DownstreamStatus==451) | .ClientHost' \</div>
+      <div class="info-popup-cmd">  ${LOG} | sort | uniq -c | sort -rn | head -10</div>
+    </div>
+    <div class="info-popup-cmd-label">Details zu einer IP:</div>
+    <div class="info-popup-cmd-wrap">
+      <div class="info-popup-cmd">grep '47.91.125.252' ${LOG} \</div>
+      <div class="info-popup-cmd">  | jq -r '[.StartUTC,.RequestPath,.DownstreamStatus]|@tsv'</div>
+    </div>
+    <div class="info-popup-cmd-label">IP manuell bannen:</div>
+    <div class="info-popup-cmd-wrap">
+      <div class="info-popup-cmd">${CS_LOG} decisions add \</div>
+      <div class="info-popup-cmd">  --ip 47.91.125.252 --duration 24h --reason manual</div>
+    </div>
+  `,
+
+  'top-direct-ips': `
+    <div class="info-popup-title">🟡 Direct-IP Quell-IPs (24h)</div>
+    <div class="info-popup-text">
+      IPs die Requests mit einer <strong>IP-Adresse als Host-Header</strong> gesendet haben
+      (statt eines Domainnamens wie <code style="color:var(--teal)">ha.hajo63.de</code>).<br><br>
+      <strong>Wie funktioniert das Blocking?</strong><br>
+      Der <code style="color:var(--teal)">https-catchall</code>-Router fängt Direct-IP-Requests
+      ab und antwortet mit <strong>404</strong> via <code style="color:var(--teal)">noop@internal</code>
+      – ohne Middleware (kein GeoBlock, kein CrowdSec-Bouncer).<br><br>
+      CrowdSec hat ein Custom Scenario <code style="color:var(--teal)">custom/direct-ip-hit</code>
+      mit <code style="color:var(--teal)">type: trigger</code> – das bedeutet:
+      <strong>beim ersten Treffer wird die IP sofort für 24h gebannt</strong>.
+      Kein Schwellenwert nötig. Der nftables-Bouncer setzt den Kernel-Drop sofort.<br><br>
+      <strong>Warum trotzdem mehrere Hits sichtbar?</strong><br>
+      Scanner feuern <strong>Bursts</strong> – viele Requests in 1–2 Sekunden gleichzeitig.
+      Traefik loggt alle Requests bevor CrowdSec den nftables-Ban setzen kann.
+      Alle <em>nachfolgenden</em> Verbindungen werden auf Kernel-Ebene gedroppt und
+      erscheinen nicht mehr im Log.<br><br>
+      <em>Beispiel: IP 47.91.125.252 hatte 24 Hits alle mit Zeitstempel
+      2026-03-01T02:10:09 – klassischer Burst-Scanner. CrowdSec hat korrekt
+      Alert custom/direct-ip-hit + crowdsecurity/http-probing ausgelöst.</em><br><br>
+      📄 Quelle: Traefik Access Log, Feld <code style="color:var(--teal)">RequestHost</code> = IP
+    </div>
+    <div class="info-popup-cmd-label">Direct-IP Hits anzeigen:</div>
+    <div class="info-popup-cmd-wrap">
+      <div class="info-popup-cmd">grep -E '"RequestHost":"[0-9]+\.' ${LOG} \</div>
+      <div class="info-popup-cmd">  | jq -r '[.StartUTC,.ClientHost,.DownstreamStatus]|@tsv' \</div>
+      <div class="info-popup-cmd">  | sort | uniq -c | sort -rn | head -20</div>
+    </div>
+    <div class="info-popup-cmd-label">Ban-Status prüfen:</div>
+    <div class="info-popup-cmd-wrap">
+      <div class="info-popup-cmd">${CS_LOG} alerts list --ip <IP></div>
+    </div>
+    <div class="info-popup-cmd-wrap">
+      <div class="info-popup-cmd">${CS_LOG} decisions list --ip <IP></div>
+    </div>
+    <div class="info-popup-cmd-label">IP manuell bannen:</div>
+    <div class="info-popup-cmd-wrap">
+      <div class="info-popup-cmd">${CS_LOG} decisions add \</div>
+      <div class="info-popup-cmd">  --ip <IP> --duration 24h --reason direct-ip-scan</div>
+    </div>
+  `,
+
+  'all-requests': `
+    <div class="info-popup-title">🔵 Alle Requests (24h)</div>
+    <div class="info-popup-text">
+      Alle HTTP-Requests die Traefik empfangen hat – geblockte und erlaubte.<br>
+      Gibt einen Überblick über das Gesamtvolumen des eingehenden Traffics.<br><br>
+      📄 Quelle: Traefik Access Log
+      <code style="font-size:10px;color:var(--teal)">${LOG}</code>
+    </div>
+    <div class="info-popup-cmd-label">Gesamtzahl Requests:</div>
+    <div class="info-popup-cmd-wrap">
+      <div class="info-popup-cmd">wc -l ${LOG}</div>
+    </div>
+    <div class="info-popup-cmd-label">Requests pro Status-Code:</div>
+    <div class="info-popup-cmd-wrap">
+      <div class="info-popup-cmd">jq -r '.DownstreamStatus' ${LOG} \</div>
+      <div class="info-popup-cmd">  | sort | uniq -c | sort -rn | head -10</div>
+    </div>
+    <div class="info-popup-cmd-label">Top anfragende IPs:</div>
+    <div class="info-popup-cmd-wrap">
+      <div class="info-popup-cmd">jq -r '.ClientHost' ${LOG} \</div>
+      <div class="info-popup-cmd">  | sort | uniq -c | sort -rn | head -10</div>
+    </div>
+  `,
+};
+
+// ─── Karten-Filter ────────────────────────────────────────────────────────────
+// Ein gemeinsamer typeFilter steuert Weltkarte + Top-Länder-Balken
+(function initMapFilter() {
+  document.querySelectorAll('[data-filter]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('[data-filter]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      typeFilter = btn.dataset.filter;
+      drawMap();
+      if (window._lastStats) renderStats(window._lastStats);
+    });
+  });
+})();
+
+(function initInfoPopups() {
+  // Globales Popup-Element erzeugen
+  const popup = document.createElement('div');
+  popup.id = 'info-popup-global';
+  document.body.appendChild(popup);
+
+  let hideTimer = null;
+
+  function showPopup(btn, key) {
+    const content = INFO_CONTENT[key];
+    if (!content) return;
+    popup.innerHTML = content;
+    popup.classList.add('visible');
+
+    // Position: über oder unter dem Button, je nach verfügbarem Platz
+    const rect = btn.getBoundingClientRect();
+    const pw = 340;
+    let left = rect.left + rect.width / 2 - pw / 2;
+    // Nicht aus dem Viewport raus (horizontal)
+    left = Math.max(8, Math.min(left, window.innerWidth - pw - 8));
+
+    // Genug Platz oben? (mind. 200px)
+    const spaceAbove = rect.top;
+    if (spaceAbove > 200) {
+      // Über dem Button
+      popup.style.top       = (rect.top - 8) + 'px';
+      popup.style.transform = 'translateY(-100%)';
+    } else {
+      // Unter dem Button
+      popup.style.top       = (rect.bottom + 8) + 'px';
+      popup.style.transform = 'none';
+    }
+
+    popup.style.width = pw + 'px';
+    popup.style.left  = left + 'px';
+  }
+
+  function hidePopup() {
+    popup.classList.remove('visible');
+  }
+
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.info-btn');
+    if (btn) {
+      e.stopPropagation();
+      const key = btn.dataset.info;
+      if (popup.classList.contains('visible') && popup._currentKey === key) {
+        hidePopup();
+        popup._currentKey = null;
+      } else {
+        showPopup(btn, key);
+        popup._currentKey = key;
+      }
+      return;
+    }
+    // Klick außerhalb → schließen
+    if (!popup.contains(e.target)) {
+      hidePopup();
+      popup._currentKey = null;
+    }
+  });
+})();
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+window.addEventListener('load', async () => {
+  initWindowToggle();  // 24h/7d Toggle-Buttons initialisieren
+  await initMap();     // GeoJSON laden + erste Karte zeichnen
+  refresh();
+  setInterval(refresh, 5000);
+
+  // Canvas bei Fenster-Resize neu zeichnen
+  window.addEventListener('resize', drawMap);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,222 @@
+# ============================================
+# Nextcloud - Cloud-Speicher & Collaboration
+# ============================================
+#
+# Nextcloud auf Pi5 - ersetzt Pi4 Installation
+# 
+# Features:
+#   - MariaDB Datenbank
+#   - Redis Cache
+#   - Zugriff auf Photos-Verzeichnis
+#   - Traefik Integration
+#
+# Verwendung:
+#   docker compose up -d              # Service starten
+#   docker compose logs -f            # Logs anzeigen
+#   docker compose down               # Service stoppen
+#
+# ============================================
+
+services:
+  # ============================================
+  # Nextcloud App
+  # ============================================
+  nextcloud:
+    image: nextcloud:stable
+    container_name: nextcloud
+    restart: unless-stopped
+    hostname: nc.hajo63.de
+    
+    depends_on:
+      nextcloud-db:
+        condition: service_healthy
+      nextcloud-redis:
+        condition: service_started
+    
+    environment:
+      - TZ=Europe/Berlin
+      - MYSQL_HOST=nextcloud-db
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - REDIS_HOST=nextcloud-redis
+      - NEXTCLOUD_TRUSTED_DOMAINS=${NEXTCLOUD_TRUSTED_DOMAINS}
+      - TRUSTED_PROXIES=172.0.0.0/8
+      - OVERWRITEPROTOCOL=https
+      - OVERWRITEHOST=nc.hajo63.de
+    
+    volumes:
+      # Nextcloud Daten (relativ)
+      - ./data:/var/www/html:rw
+      
+      # Zeitzone
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+      
+      # Geteiltes Foto-Verzeichnis (absolut)
+      - /home/hajo/photos:/mnt/photos:ro
+    
+    networks:
+      - crowdsec-net      # Für Traefik
+      - nextcloud-internal # Für DB und Redis
+    
+    ports:
+      - "8089:80"
+    
+    labels:
+      # What's Up Docker (WUD) - Update-Überwachung
+      - "wud.watch=true"
+      - "wud.tag.include=^\\d+\\.\\d+\\.\\d+$$"
+      - "wud.display.name=Nextcloud"
+      - "wud.display.icon=si:nextcloud"
+      
+      # Watchtower - Auto-Updates (deaktiviert für Stabilität)
+      - "com.centurylinklabs.watchtower.enable=false"
+    
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ============================================
+  # Nextcloud Datenbank (MariaDB)
+  # ============================================
+  nextcloud-db:
+    image: mariadb:latest
+    container_name: nextcloud-db
+    restart: unless-stopped
+    hostname: nextcloud-db
+    
+    environment:
+      - TZ=Europe/Berlin
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+    
+    volumes:
+      # Datenbank-Daten (relativ)
+      - ./db:/var/lib/mysql:rw
+      
+      # Zeitzone
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+    
+    networks:
+      - nextcloud-internal
+    
+    ports:
+      - "3307:3306"
+    
+    command: >
+      --transaction-isolation=READ-COMMITTED
+      --log-bin=ROW
+      --innodb-read-only-compressed=OFF
+      --log_bin_trust_function_creators=1
+    
+    labels:
+      # What's Up Docker (WUD)
+      - "wud.watch=true"
+      - "wud.tag.include=^\\d+\\.\\d+\\.\\d+$$"
+      - "wud.display.name=Nextcloud MariaDB"
+      - "wud.display.icon=si:mariadb"
+      
+      # Watchtower - Auto-Updates (deaktiviert für Datenbank)
+      - "com.centurylinklabs.watchtower.enable=false"
+    
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ============================================
+  # Nextcloud Cache (Redis)
+  # ============================================
+  nextcloud-redis:
+    image: redis:alpine
+    container_name: nextcloud-redis
+    restart: unless-stopped
+    
+    environment:
+      - TZ=Europe/Berlin
+    
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+    
+    networks:
+      - nextcloud-internal
+    
+    labels:
+      # What's Up Docker (WUD)
+      - "wud.watch=true"
+      - "wud.tag.include=^\\d+\\.\\d+\\.\\d+$$"
+      - "wud.display.name=Nextcloud Redis"
+      - "wud.display.icon=si:redis"
+      
+      # Watchtower - Auto-Updates aktiviert (Redis ist stabil)
+      - "com.centurylinklabs.watchtower.enable=true"
+    
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+    
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
+# ============================================
+# Netzwerke
+# ============================================
+networks:
+  # Externes Netzwerk für Traefik/CrowdSec
+  crowdsec-net:
+    external: true
+  
+  # Internes Netzwerk für DB und Redis
+  nextcloud-internal:
+    name: nextcloud-internal
+    driver: bridge
+    internal: true
+
+# Made with Bob

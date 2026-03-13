@@ -1,0 +1,86 @@
+# ============================================
+# .gitignore für /home/hajo
+# ============================================
+# Git-Repository im Home-Verzeichnis für umfassendes Backup
+# Sensible Daten werden durch verschlüsseltes Backup gesichert
+
+# ============================================
+# Sensible Daten (via verschlüsseltes Backup)
+# ============================================
+
+# Environment-Dateien mit Secrets
+**/.env
+.env
+
+# Backup-Passwort
+.backup-password
+
+# SSH-Keys
+.ssh/
+**/*.key
+**/*.pem
+
+# ============================================
+# Docker-Daten (zu groß für Git)
+# ============================================
+
+# Container-Daten
+docker/*/data/
+docker/*/avatars/
+
+# Logs
+docker/*/logs/
+**/*.log
+
+# ============================================
+# Backup-Verzeichnisse
+# ============================================
+
+# Verschlüsselte Backups (werden separat gesichert)
+backups/
+*.tar.gz
+*.tar.gz.gpg
+
+# ============================================
+# System & Cache
+# ============================================
+
+# Cache-Verzeichnisse
+.cache/
+**/__pycache__/
+**/*.pyc
+**/.pytest_cache/
+
+# Temporäre Dateien
+*.tmp
+*.swp
+*~
+.DS_Store
+
+# Node modules (falls vorhanden)
+**/node_modules/
+
+# ============================================
+# Git-Metadaten
+# ============================================
+
+# Git-Verzeichnis selbst nicht versionieren
+.git/
+
+# ============================================
+# Behalten (explizit inkludieren)
+# ============================================
+
+# Verzeichnisstruktur behalten
+!**/.gitkeep
+
+# Konfigurationsdateien behalten
+!docker-compose*.yml
+!**/docker-compose.yml
+!**/*.conf
+!**/*.md
+!**/*.sh
+!**/*.py
+
+# Beispiel-Dateien behalten
+!**/.env.example

@@ -1,0 +1,64 @@
+# ============================================
+# Traefik Dynamic Configuration - Nextcloud
+# ============================================
+#
+# Nextcloud-spezifische Routen und Services
+# 
+# Parallelbetrieb:
+#   - nc.hajo63.de → Nextcloud Pi5 (neu)
+#   - nc.hajo62.duckdns.org → Nextcloud Pi4 (alt)
+#
+# ============================================
+
+http:
+  # ============================================
+  # Routers
+  # ============================================
+  routers:
+    # Nextcloud Pi5 (neue Domain)
+    nextcloud-pi5:
+      rule: "Host(`nc.hajo63.de`)"
+      entryPoints:
+        - websecure
+      service: nextcloud-pi5
+      middlewares:
+        - rate-limit-standard@file  # Rate Limiting
+        - geoblock-de@file          # Nur Deutschland
+        - secure-headers@file       # Security Headers
+      tls:
+        options: tls-modern
+      priority: 10
+    
+    # Nextcloud Pi4 (alte Domain - bleibt aktiv)
+    nextcloud-pi4:
+      rule: "Host(`nc.hajo62.duckdns.org`)"
+      entryPoints:
+        - websecure
+      service: nextcloud-pi4-backend
+      middlewares:
+        - rate-limit-standard@file  # Rate Limiting
+        - geoblock-de@file          # Nur Deutschland
+        - secure-headers@file       # Security Headers
+      tls:
+        options: tls-modern
+      priority: 10
+
+  # ============================================
+  # Services
+  # ============================================
+  services:
+    # Nextcloud Pi5 (lokaler Docker-Container)
+    nextcloud-pi5:
+      loadBalancer:
+        passHostHeader: true
+        servers:
+          - url: "http://nextcloud:80"
+    
+    # Nextcloud Pi4 Backend (direkt zu Nextcloud Container)
+    nextcloud-pi4-backend:
+      loadBalancer:
+        passHostHeader: true
+        servers:
+          - url: "http://192.168.178.3:8088"
+
+# Made with Bob

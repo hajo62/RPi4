@@ -1,0 +1,10 @@
+# Environment files with secrets
+.env
+
+# State and status data
+data/status.json
+data/*.txt
+data/*.log
+
+# Keep directory structure
+!data/.gitkeep

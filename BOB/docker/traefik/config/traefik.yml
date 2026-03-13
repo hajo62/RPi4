@@ -1,0 +1,96 @@
+# ============================================
+# Traefik Static Configuration
+# ============================================
+
+# ============================================
+# Logging
+# ============================================
+log:
+  level: INFO
+
+accessLog:
+  filePath: "/logs/access.json"
+  format: json
+  bufferingSize: 100
+  filters:
+    statusCodes:
+      - "200-399"
+      - "401"
+      - "403"
+      - "404"
+      - "429"
+      - "500-599"
+  fields:
+    defaultMode: keep
+    names:
+      ClientHost: keep
+      RequestMethod: keep      # Für HTTP-Methoden-Angriffe (CrowdSec)
+      RequestPath: keep        # Für Path-basierte Angriffe (CrowdSec)
+      RequestProtocol: keep    # Für Protokoll-Angriffe (CrowdSec)
+      OriginStatus: keep       # Backend-Status (CrowdSec)
+      Duration: keep           # Für DoS-Erkennung (CrowdSec)
+    headers:
+      defaultMode: drop
+      names:
+        User-Agent: keep       # Für Bot-Erkennung (CrowdSec)
+        Referer: keep
+        X-Forwarded-For: keep  # Echte Client-IP (CrowdSec)
+        Origin: drop
+
+# ============================================
+# API & Dashboard
+# ============================================
+api:
+  dashboard: true
+  insecure: true  # Dashboard auf localhost:8080 (NICHT nach außen!)
+
+# ============================================
+# Plugins
+# ============================================
+experimental:
+  plugins:
+    # GeoIP-Blocking (nur Deutschland)
+    geoblock:
+      moduleName: github.com/PascalMinder/geoblock
+      version: v0.3.3
+
+# ============================================
+# EntryPoints
+# ============================================
+entryPoints:
+  # HTTP (Port 80) - Redirect zu HTTPS
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+          permanent: true
+  
+  # HTTPS (Port 443)
+  websecure:
+    address: ":443"
+    http:
+      middlewares:
+        - secure-headers@file  # HSTS global für alle HTTPS-Requests
+      tls:
+        options: tls-modern@file
+    http3: {}
+
+# ============================================
+# Providers
+# ============================================
+providers:
+  # Docker Provider (nur für Dashboard, nicht für Routing)
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+    watch: true
+  
+  # File Provider (für alle Routers, Services, Middlewares)
+  file:
+    directory: "/etc/traefik/dynamic"
+    watch: true
+
+# Made with Bob

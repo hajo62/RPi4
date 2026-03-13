@@ -1,0 +1,50 @@
+# ============================================
+# Traefik Dynamic Configuration - TLS
+# ============================================
+
+tls:
+  # ============================================
+  # SSL-Zertifikate (Ionos)
+  # ============================================
+  certificates:
+    # Hauptdomain: hajo63.de (als Default/Fallback)
+    - certFile: /certs/hajo63.de/fullchain.pem
+      keyFile: /certs/hajo63.de/privkey.pem
+      stores:
+        - default
+    
+    # Fallback-Domain: hajo62.duckdns.org
+    - certFile: /certs/hajo62.duckdns.org/fullchain.pem
+      keyFile: /certs/hajo62.duckdns.org/privkey.pem
+  
+  # ============================================
+  # Certificate Stores
+  # ============================================
+  stores:
+    default:
+      defaultCertificate:
+        certFile: /certs/hajo63.de/fullchain.pem
+        keyFile: /certs/hajo63.de/privkey.pem
+  
+  # ============================================
+  # TLS-Optionen
+  # ============================================
+  options:
+    tls-modern:
+      minVersion: VersionTLS12
+      maxVersion: VersionTLS13
+      sniStrict: true
+      curvePreferences:
+        - X25519
+        - CurveP521
+        - CurveP384
+      cipherSuites:
+        # AES-256 zuerst für bessere Cipher Strength (100%)
+        - TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+        - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+        - TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305
+        - TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305
+        - TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
+        - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+
+# Made with Bob

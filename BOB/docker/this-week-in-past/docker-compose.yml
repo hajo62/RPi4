@@ -1,0 +1,91 @@
+# This Week in Past - Docker Compose Configuration
+# Basierend auf Pi4 Konfiguration, angepasst für Pi5 mit NFS-Mount
+
+services:
+  ##################################################
+  # This week in past
+  ##################################################
+  this-week-in-past:
+    image: rouhim/this-week-in-past:1.31.26
+    container_name: this-week-in-past
+    
+    # Whats-Up-Docker Labels
+    labels:
+      - "wud.watch=true"
+      - "wud.tag.include=^\\d+\\.\\d+\\.\\d+$$"
+    
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+    restart: unless-stopped
+    volumes:
+      # NFS-Mount vom Pi4 als Bildquelle
+      - /srv/nfs/photos:/resources:ro
+    ports:
+      - "8180:8080"
+    environment:
+      BIGDATA_CLOUD_API_KEY: ${THIS_WEEK_IN_PAST_BIGDATA_CLOUD_API_KEY}
+      DATE_FORMAT: '%a %d.%m.%Y'
+      IGNORE_FOLDER_MARKER_FILES: '.twipignore'
+      IGNORE_FOLDER_REGEX: '.*(I|i)gnor(e|ieren)|.*(P|p)rivat|.*Originale|.*xcf|.*Originale und xcf'
+      OPEN_WEATHER_MAP_API_KEY: ${THIS_WEEK_IN_PAST_OPEN_WEATHER_MAP_API_KEY}
+      PRELOAD_IMAGES: true
+      RESOURCE_PATHS: /resources/2025,/resources/2024,/resources/2023,/resources/2022,/resources/2021,/resources/2020,/resources/2010-2019,/resources/2000-2009,/resources/1990-1999,/resources/1980-1989,/resources/1970-1979,/resources/1962-1969,/resources/Fotoalben
+      RUST_BACKTRACE: full
+      RUST_LOG: debug
+      SHOW_HIDE_BUTTON: true
+      SLIDESHOW_INTERVAL: 120
+      TZ: Europe/Berlin
+      LANG: de_DE.UTF-8
+      LANGUAGE: de_DE.UTF-8
+      LC_TIME: de_DE.UTF-8
+      LC_ALL: de_DE.UTF-8
+      WEATHER_ENABLED: true
+      WEATHER_LANGUAGE: de
+      PUID: 33
+      PGID: 33
+
+  ##################################################
+  # This week in past - priv
+  ##################################################
+  this-week-in-past-priv:
+    image: rouhim/this-week-in-past:1.31.26
+    container_name: this-week-in-past-priv
+    
+    # Whats-Up-Docker Labels
+    labels:
+      - "wud.watch=true"
+      - "wud.tag.include=^\\d+\\.\\d+\\.\\d+$$"
+    
+    restart: unless-stopped
+    volumes:
+      # NFS-Mount vom Pi4 als Bildquelle
+      - /srv/nfs/photos:/resources:ro
+    ports:
+      - "8280:8080"
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 384M
+    environment:
+      BIGDATA_CLOUD_API_KEY: ${THIS_WEEK_IN_PAST_BIGDATA_CLOUD_API_KEY}
+      DATE_FORMAT: '%a %d.%m.%Y'
+      IGNORE_FOLDER_MARKER_FILES: '.twipignore'
+      IGNORE_FOLDER_REGEX: '.*ausblenden|.*Originale und xcf'
+      OPEN_WEATHER_MAP_API_KEY: ${THIS_WEEK_IN_PAST_OPEN_WEATHER_MAP_API_KEY}
+      RANDOM_SLIDESHOW: true
+      RESOURCE_PATHS: /resources/2010-2019/2011/ausblenden/2011.08 - 2 - Kroatien/2011.08 - 4 - Pasman only privat
+      RUST_BACKTRACE: full
+      RUST_LOG: debug
+      SHOW_HIDE_BUTTON: true
+      SLIDESHOW_INTERVAL: 145
+      TZ: Europe/Berlin
+      WEATHER_ENABLED: false
+      WEATHER_LANGUAGE: de
+      PUID: 33
+      PGID: 33
+
+# Made with Bob

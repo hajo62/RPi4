@@ -1,0 +1,121 @@
+services:
+  wud:
+    image: fmartinou/whats-up-docker:latest
+    container_name: wud
+    
+    # Abhängigkeit: Webhook-Server muss zuerst starten
+    depends_on:
+      wud-webhook:
+        condition: service_healthy
+    
+    # Netzwerk: proxy für Konsistenz mit anderen Services
+    networks:
+      - proxy
+    
+    ports:
+      - "3000:3000"
+    
+    volumes:
+      # Docker Socket für Container-Überwachung
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Persistente Daten
+      - ./data:/store
+      # Zeitzone (für korrekte Log-Timestamps)
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+    
+    environment:
+      # Zeitzone
+      - TZ=Europe/Berlin
+      
+      # Watcher Konfiguration
+      - WUD_WATCHER_LOCAL_SOCKET=/var/run/docker.sock
+      - WUD_WATCHER_LOCAL_WATCHBYDEFAULT=true
+      
+      # Log Level (info, debug, warn, error)
+      - WUD_LOG_LEVEL=info
+      
+      # Update Check Intervall (in Sekunden, Standard: 300 = 5 Minuten)
+      - WUD_WATCHER_LOCAL_CRON=0 */6 * * *
+      
+      # HTTP Webhook Trigger
+      - WUD_TRIGGER_HTTP_LOCAL_URL=http://wud-webhook:8091/webhook
+      - WUD_TRIGGER_HTTP_LOCAL_METHOD=POST
+    
+    # Resource Limits
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'      # Max 50% einer CPU
+          memory: 256M     # Max 256 MB RAM
+        reservations:
+          cpus: '0.1'      # Min 10% einer CPU
+          memory: 64M      # Min 64 MB RAM
+    
+    restart: unless-stopped
+    
+    # Healthcheck
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+  
+  wud-webhook:
+    image: alpine:3.23.3
+    container_name: wud-webhook
+    
+    labels:
+      - "wud.watch=true"
+      - "wud.tag.include=^3\\.\\d+$$"
+    
+    networks:
+      - proxy
+    ports:
+      - "8091:8091"
+    volumes:
+      - ./scripts:/scripts:ro
+      - ./webhook-server.py:/app/webhook-server.py:ro
+      # Zeitzone (für korrekte Log-Timestamps)
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+    working_dir: /app
+    environment:
+      - TZ=Europe/Berlin
+      - PORT=8091
+    
+    # Installiere Python, curl, tzdata und starte Server
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        apk add --no-cache python3 bash curl tzdata &&
+        exec python3 /app/webhook-server.py
+    
+    # Resource Limits
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'     # Max 25% einer CPU
+          memory: 64M      # Max 64 MB RAM
+        reservations:
+          cpus: '0.05'     # Min 5% einer CPU
+          memory: 16M      # Min 16 MB RAM
+    
+    restart: unless-stopped
+    
+    # Healthcheck
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8091/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+# Netzwerk-Definition für lokales Testen
+networks:
+  proxy:
+    external: true  # Nutzt zentral definiertes Netzwerk
+
+# Made with Bob

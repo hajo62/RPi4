@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<GARMIN_MAP_THEME>
+  <METADATA>
+    <TITLE>Michelin</TITLE>
+    <DESCRIPTION>Michelin Theme</DESCRIPTION>
+    <LOCALELIST>
+      <locale>motorcycle</locale>
+    </LOCALELIST>
+    <Version><Major>0</Major><Minor>1</Minor></Version>
+  </METADATA>
+
+  <PRESENTATION ID="Guidance">
+
+    <STYLELIST>
+
+      <STYLE field="MAP_BEACH_CLR">
+        <COLOR>
+          <PRIMARY day="#FFDA73" night="#7A4909"/>
+        </COLOR>
+      </STYLE>
+
+      <STYLE field="MAP_EXTRD_AREA_CLR">
+        <COLOR>
+          <PRIMARY day="#678786" night="#114B59"/>
+        </COLOR>
+      </STYLE>
+
+      <STYLE field="MAP_GLACIER_CLR">
+        <COLOR>
+          <PRIMARY day="#B0FFF9" night="#064942"/>
+        </COLOR>
+      </STYLE>
+
+      <STYLE field="MAP_LAND_CLR">
+        <COLOR>
+          <PRIMARY day="#ECFFCC" night="#747D64"/>
+        </COLOR>
+      </STYLE>
+
+      <STYLE field="MAP_MISC_AREA_CLR">
+        <COLOR>
+          <PRIMARY day="#EFE0CA" night="#352C20"/> 
+        </COLOR>
+      </STYLE>
+
+      <STYLE field="MAP_MISC_WATER_AREA_CLR">
+        <COLOR>
+          <PRIMARY day="#2277FF" night="#1253B2"/>
+        </COLOR>
+      </STYLE>
+
+      <STYLE field="MAP_PARK_CLR">
+        <COLOR>
+          <PRIMARY day="#6FBA3E" night="#2F7700"/>
+        </COLOR>
+      </STYLE>
+	  
+      <STYLE field="MAP_RWY_HSRFC_CLR">
+        <COLOR>
+          <PRIMARY day="#7F7F7F" night="#808080"/>
+        </COLOR>
+      </STYLE>
+	  
+      <STYLE field="MAP_URBAN_LAND_CLR">
+        <COLOR>
+          <PRIMARY day="#F7DDC3" night="#808080"/>
+        </COLOR>
+      </STYLE>
+
+      <STYLE field="MAP_WATER_CLR">
+        <COLOR>
+          <PRIMARY day="#2277FF" night="#1253B2"/>
+        </COLOR>
+      </STYLE>
+
+      <STYLE field="MAP_WETLAND_CLR">
+        <COLOR>
+          <PRIMARY day="#008993" night="#003847"/>
+        </COLOR>
+      </STYLE>
+
+      <STYLE field="MAP_WOODS_CLR">
+        <COLOR>
+          <PRIMARY day="#6FBA3E" night="#2F7700"/>
+        </COLOR>
+      </STYLE>
+
+      <STYLE field="MAP_MISC_WATER_LINE_CLR" scale="1.5" border="2">
+        <COLOR>
+          <PRIMARY day="#00FFFF" night="#00FFFF"/>
+          <SECONDARY day="#000000" night="#000000"/>
+        </COLOR>
+      </STYLE>
+
+	  <STYLE field="MAP_ROAD_ALLY_CLR" scale="0.5">
+        <COLOR>
+          <PRIMARY day="#FF0000" night="#FF0000"/>
+        </COLOR>
+      </STYLE>
+	  
+      <STYLE field="MAP_ROAD_ARTERIAL_CLR" scale="1.5" border="3">
+        <COLOR>
+          <PRIMARY day="#00C000" night="#00C000"/>
+          <SECONDARY day="#000000" night="#000000"/>
+        </COLOR>
+      </STYLE>
+
+      <STYLE field="MAP_ROAD_COLLECTOR_CLR" scale="1.5" border="2">
+        <COLOR>
+          <PRIMARY day="#80FF80" night="#80FF80"/>
+          <SECONDARY day="#000000" night="#000000"/>
+        </COLOR>
+      </STYLE>
+
+      <STYLE field="MAP_ROAD_INTERSTATE_CLR" scale="1" border="4">
+        <COLOR>
+          <PRIMARY day="#FFFFFF" night="#FFFFFF"/>
+          <SECONDARY day="#0000FF" night="#0000FF"/>
+        </COLOR>
+      </STYLE>
+
+      <STYLE field="MAP_ROAD_SS_INTERSTATE_CLR" scale="1" border="4">
+        <COLOR>
+          <PRIMARY day="#FFFFFF" night="#FFFFFF"/>
+          <SECONDARY day="#0000FF" night="#0000FF"/>
+        </COLOR>
+      </STYLE>
+
+      <STYLE field="MAP_ROAD_HWY_MJR_CLR" scale="1" border="4">
+        <COLOR>
+          <PRIMARY day="#FFFF00" night="#FFFF00"/>
+          <SECONDARY day="#000000" night="#000000"/>
+        </COLOR>
+      </STYLE>
+
+      <STYLE field="MAP_ROAD_HWY_MNR_CLR" scale="1.5" border="3">
+        <COLOR>
+          <PRIMARY day="#408000" night="#408000"/>
+          <SECONDARY day="#000000" night="#000000"/>
+        </COLOR>
+      </STYLE>
+	  
+      <STYLE field="MAP_ROAD_RAILRD_CLR" scale="1">
+        <COLOR>
+          <PRIMARY day="#000000" night="#000000"/>
+        </COLOR>
+      </STYLE>
+	  
+      <STYLE field="MAP_ROAD_RESIDENTIAL_CLR" scale="1" border="2">
+        <COLOR>
+          <PRIMARY day="#FFFFFF" night="#FFFFFF"/>
+          <SECONDARY day="#000000" night="#000000"/>
+        </COLOR>
+      </STYLE>
+
+      <STYLE field="MAP_ROAD_RAMP_CLR" scale="1" border="2">
+        <COLOR>
+          <PRIMARY day="#606060" night="#606060"/>
+          <SECONDARY day="#000000" night="#000000"/> 
+        </COLOR>
+      </STYLE>
+
+      <STYLE field="MAP_ROAD_TRAIL_CLR" scale="0.5">
+        <COLOR>
+          <PRIMARY day="#B89A85" night="#B89A85"/>
+        </COLOR>
+      </STYLE>
+
+      <STYLE field="MAP_ROAD_UNPAVED_CLR" scale="1">
+        <COLOR>
+         <PRIMARY day="#705E51" night="#705E51"/>
+        </COLOR>
+      </STYLE>
+
+    </STYLELIST>
+
+  </PRESENTATION>
+
+</GARMIN_MAP_THEME>

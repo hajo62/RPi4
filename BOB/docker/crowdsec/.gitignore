@@ -1,0 +1,16 @@
+# Umgebungsvariablen
+.env
+
+# CrowdSec Daten
+config/
+data/
+db/
+
+# Logs
+*.log
+
+# Backup-Dateien
+*.bak
+*.backup
+
+# Made with Bob

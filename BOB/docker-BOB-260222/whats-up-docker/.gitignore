@@ -1,0 +1,16 @@
+# Environment files with secrets
+.env
+
+# WUD data (database and state)
+data/
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.swp
+*~
+
+# Keep directory structure
+!data/.gitkeep
