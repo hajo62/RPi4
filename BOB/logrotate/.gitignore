@@ -1,0 +1,8 @@
+# Keine temporären oder Backup-Dateien
+*.bak
+*.tmp
+*~
+
+# Keine Test-Logs
+test-*.log
+*.test

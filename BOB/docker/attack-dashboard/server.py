@@ -242,27 +242,31 @@ def ingest_traefik_line(line: str, skip_geo: bool = False):
 
 def _find_rotated_logs(base_path: str) -> list:
     """
-    Findet rotierte Log-Dateien (access.json.1, access.json.1.gz, etc.)
+    Findet rotierte Log-Dateien in beiden Formaten:
+      1. Nummeriert: access.json.1, access.json.2.gz (Standard logrotate)
+      2. Datiert: access.json-20260323, access.json-20260323.gz (logrotate mit dateext)
     Gibt Liste sortiert nach Alter zurück (neueste zuerst).
     """
     import glob
     dir_path = os.path.dirname(base_path)
     base_name = os.path.basename(base_path)
     
-    # Suche nach .1, .2, .3, ... und .gz-Varianten
-    pattern = os.path.join(dir_path, f"{base_name}.[0-9]*")
-    rotated = glob.glob(pattern)
+    # Suche nach beiden Formaten
+    # Format 1: access.json.1, access.json.2.gz
+    pattern1 = os.path.join(dir_path, f"{base_name}.[0-9]*")
+    # Format 2: access.json-20260323, access.json-20260323.gz
+    pattern2 = os.path.join(dir_path, f"{base_name}-[0-9]*")
     
-    # Sortiere nach Nummer (access.json.1 vor access.json.2)
-    def extract_num(path):
-        # Extrahiere Nummer aus "access.json.1.gz" → 1
-        parts = os.path.basename(path).replace('.gz', '').split('.')
-        try:
-            return int(parts[-1])
-        except (ValueError, IndexError):
-            return 999
+    rotated = glob.glob(pattern1) + glob.glob(pattern2)
     
-    rotated.sort(key=extract_num)
+    # Sortiere nach Datei-Änderungszeit (neueste zuerst)
+    # Das funktioniert für beide Formate und ist robuster als Namens-Parsing
+    try:
+        rotated.sort(key=lambda p: os.path.getmtime(p), reverse=True)
+    except Exception:
+        # Fallback: alphabetisch sortieren (funktioniert gut für Datumsformat)
+        rotated.sort(reverse=True)
+    
     return rotated
 
 def _read_log_file(path: str, cutoff: float, skip_geo: bool = True):

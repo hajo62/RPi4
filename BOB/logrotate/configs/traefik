@@ -1,0 +1,54 @@
+# ============================================
+# Logrotate-Konfiguration für Traefik
+# ============================================
+#
+# Installation: sudo cp logrotate/configs/traefik /etc/logrotate.d/traefik
+#
+# Diese Konfiguration:
+# - Rotiert Logs alle 4 Wochen (monatlich)
+# - Behält 1 alte Log-Datei
+# - Komprimiert alte Logs mit gzip
+# - Erstellt neue Log-Datei mit korrekten Berechtigungen
+# - Sendet SIGUSR1 an Traefik zum Wiedereröffnen der Log-Datei
+# ============================================
+
+/home/hajo/docker/traefik/logs/access.json {
+    # Alle 4 Wochen rotieren (monatlich)
+    monthly
+    
+    # 1 rotierte Log-Datei behalten (= 2 Monate Historie: aktuell + 1 alt)
+    rotate 1
+    
+    # Nicht rotieren wenn Log leer ist
+    notifempty
+    
+    # Nicht fehlschlagen wenn Log-Datei fehlt
+    missingok
+    
+    # Alte Logs komprimieren
+    compress
+    
+    
+    # Neue Log-Datei nach Rotation erstellen
+    create 0644 root root
+    
+    # Datums-Erweiterungsformat (JJJJMMTT)
+    dateext
+    dateformat -%Y%m%d
+    
+    # Datum als Erweiterung statt Nummer verwenden
+    dateyesterday
+    
+    # Nach Rotation ausführen
+    postrotate
+        # SIGUSR1 an Traefik senden zum Wiedereröffnen der Log-Datei
+        # Dies teilt Traefik mit, die Log-Datei zu schließen und neu zu öffnen
+        docker kill --signal=SIGUSR1 traefik 2>/dev/null || true
+    endscript
+    
+    # Alte Logs nicht per E-Mail versenden
+    nomail
+    
+    # sharedscripts verwenden um postrotate nur einmal auszuführen
+    sharedscripts
+}
