@@ -23,7 +23,7 @@ services:
     volumes:
       # NFS-Mount vom Pi4 als Bildquelle
       - /mnt/pi4-photos:/resources:ro
-    ports:
+    ports: 
       - "8180:8080"
     environment:
       BIGDATA_CLOUD_API_KEY: ${THIS_WEEK_IN_PAST_BIGDATA_CLOUD_API_KEY}
