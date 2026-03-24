@@ -22,7 +22,7 @@ services:
     restart: unless-stopped
     volumes:
       # NFS-Mount vom Pi4 als Bildquelle
-      - /srv/nfs/photos:/resources:ro
+      - /mnt/pi4-photos:/resources:ro
     ports:
       - "8180:8080"
     environment:
