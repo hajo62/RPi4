@@ -2,6 +2,20 @@
 
 Diese Datei enthält alle projektspezifischen Regeln, Pfade und Standards für das BOB-Projekt (Raspberry Pi 5 Server).
 
+## 🌍 SPRACHE
+
+**WICHTIG: Alle Antworten, Kommentare und Dokumentation IMMER auf DEUTSCH!**
+
+- ✅ Antworten: Deutsch
+- ✅ Kommentare in Code: Deutsch
+- ✅ Dokumentation: Deutsch
+- ✅ Commit-Messages: Deutsch
+- ✅ README-Dateien: Deutsch
+
+**Ausnahmen:**
+- Code-Variablen und Funktionsnamen: Englisch (Standard)
+- Technische Begriffe: Original (z.B. "Docker", "Container", "Traefik")
+
 ---
 
 ## 🏠 System-Informationen
