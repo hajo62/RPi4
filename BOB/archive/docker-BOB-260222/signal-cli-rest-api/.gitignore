@@ -1,0 +1,18 @@
+# Environment files with secrets
+.env
+
+# Signal data (contains private keys and messages)
+data/
+avatars/
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.swp
+*~
+
+# Keep directory structure
+!data/.gitkeep
+!avatars/.gitkeep

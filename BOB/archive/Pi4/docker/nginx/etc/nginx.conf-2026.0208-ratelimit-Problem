@@ -1,0 +1,424 @@
+load_module modules/ngx_http_geoip_module.so;
+
+# =============================================================================
+# nginx.conf für Pi #1 (192.168.178.3)
+#
+# Architektur:
+#   Internet -> Fritzbox Portfreigabe -> Pi #2 (Traefik) -> HTTP -> Pi #1 (nginx) -> Apps (Docker)
+#
+# Ziel:
+#   - Alle .de-Aufrufe laufen über Traefik und dann durch nginx (Port 80 intern)
+#   - DuckDNS (*.duckdns.org) kann "irgendwann" wieder direkt auf nginx:443 (mit Portfreigabe) genutzt werden
+#   - nginx soll Rate-Limits/Headers/Hardening weiterhin nutzen
+#
+# Wichtig:
+#   - Traefik terminiert TLS für *.de. nginx sieht dafür nur HTTP -> TLS-Hardening muss bei Traefik passieren.
+#   - DuckDNS-Serverblöcke auf 443 bleiben vorhanden für den späteren Direktbetrieb.
+# =============================================================================
+
+worker_processes 1;
+
+events {
+  worker_connections 1024;
+}
+
+http {
+  # ---------------------------------------------------------------------------
+  # Globales Hardening / Basis-Setup
+  # ---------------------------------------------------------------------------
+  server_tokens off;  # weniger Infos preisgeben 
+
+  # Resolver ist wichtig u.a. für OCSP Stapling Verify 
+  resolver 1.1.1.1 9.9.9.9 valid=300s;
+  resolver_timeout 5s;
+
+  # Rate-/Conn-Limits (werden nur aktiv, wo limit_req/limit_conn gesetzt ist) 
+  limit_req_zone  $binary_remote_addr zone=public_rl:20m rate=30r/m;
+  limit_conn_zone $binary_remote_addr zone=perip_conn:20m;
+
+  # Extra Limit für Signal API (Bestand) 
+  limit_req_zone  $binary_remote_addr zone=signal:10m rate=1r/m;
+
+  # Logging
+  # Tipp: Wir loggen zusätzlich peer="$realip_remote_addr", damit Du sofort siehst,
+  # ob der TCP-Peer wirklich Traefik (192.168.178.55) war.
+  log_format main_ext '$remote_addr - $remote_user [$time_local] '
+                      '"$request" $status $body_bytes_sent '
+                      '"$http_referer" "$http_user_agent" '
+                      'rt=$request_time uct=$upstream_connect_time '
+                      'uht=$upstream_header_time urt=$upstream_response_time '
+                      'xff="$http_x_forwarded_for" peer="$realip_remote_addr"';
+  access_log /var/log/nginx/access.log main_ext; 
+
+  sendfile on; 
+
+  # Gzip (Bestand)
+  gzip on; 
+  gzip_http_version 1.0;
+  gzip_proxied any;
+  gzip_min_length 500;
+  gzip_disable "MSIE [1-6]\.";
+  gzip_types text/plain text/xml text/css
+             text/comma-separated-values
+             text/javascript
+             application/x-javascript
+             application/atom+xml;
+
+  # ---------------------------------------------------------------------------
+  # Globale SSL-Parameter
+  #
+  # Diese gelten für die Serverblöcke mit "listen 443 ssl" (DuckDNS Direktbetrieb).
+  # Für *.de (Traefik terminates TLS) ist TLS-Hardening in Traefik zu konfigurieren.
+  # ---------------------------------------------------------------------------
+  ssl_certificate         /etc/letsencrypt/hajo62.duckdns.org/fullchain.cer; 
+  ssl_certificate_key     /etc/letsencrypt/hajo62.duckdns.org/hajo62.duckdns.org.key; 
+  ssl_trusted_certificate /etc/letsencrypt/hajo62.duckdns.org/ca.cer; 
+
+  ssl_dhparam dhparam.pem; 
+  ssl_protocols TLSv1.2 TLSv1.3; 
+  ssl_ciphers 'ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256'; 
+  ssl_conf_command Ciphersuites TLS_AES_256_GCM_SHA384:TLS_AES_128_GCM_SHA256:TLS_CHACHA20_POLY1305_SHA256; 
+  ssl_prefer_server_ciphers off; 
+
+  ssl_session_cache shared:SSL:10m; 
+  ssl_session_timeout 10m; 
+  ssl_session_tickets off; 
+
+  # OCSP Stapling
+  ssl_stapling on; 
+  ssl_stapling_verify on; 
+
+  # Globale Security Header (wirken auf alle HTTPS vHosts auf dieser nginx-Instanz)
+  add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always; 
+  add_header X-Frame-Options SAMEORIGIN; 
+  add_header X-XSS-Protection "1; mode=block"; 
+  add_header X-Content-Type-Options "nosniff" always; 
+  add_header Referrer-Policy "strict-origin-when-cross-origin" always; 
+  add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always; 
+
+  # ---------------------------------------------------------------------------
+  # Real-IP: echte Client-IP aus Traefik übernehmen
+  #
+  # - Traefik ist TCP-Peer: 192.168.178.55
+  # - X-Forwarded-For enthält dann die echte Client-IP (Internet)
+  #
+  # Achtung:
+  #   Sobald real_ip aktiv ist, wird $remote_addr ggf. auf die Client-IP umgeschrieben.
+  #   Daher darfst Du Zugriffslisten (Traefik-only) NICHT per "allow/deny" basierend
+  #   auf $remote_addr machen, sondern musst $realip_remote_addr (Peer-IP) prüfen.
+  # ---------------------------------------------------------------------------
+  real_ip_header X-Forwarded-For; 
+  set_real_ip_from 192.168.178.55; 
+  real_ip_recursive on; 
+
+  # WebSocket Upgrade Map (wichtig u.a. für Home Assistant) 
+  map $http_upgrade $connection_upgrade {
+    default upgrade;
+    '' close;
+  }
+
+  # ---------------------------------------------------------------------------
+  # Upstreams (Bestand)
+  # ---------------------------------------------------------------------------
+  upstream homeassistant_backend {
+    server 192.168.178.3:8123; 
+    keepalive 32; 
+  }
+
+  upstream nextcloud_backend {
+    server 192.168.178.3:8088; 
+    keepalive 32; 
+  }
+
+  # ---------------------------------------------------------------------------
+  # Catch-all Default Server: 443
+  # Schließt Scans ohne passenden Host/SNI (return 444) 
+  # ---------------------------------------------------------------------------
+  server {
+    listen 443 ssl default_server;
+    listen [::]:443 ssl default_server;
+    server_name _;
+    return 444;
+  }
+
+  # ---------------------------------------------------------------------------
+  # Catch-all Default Server: 80 (NEU in Deiner laufenden Conf)
+  # Schließt Scans ohne passenden Host (return 444) 
+  # ---------------------------------------------------------------------------
+  server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name _;
+    return 444;
+  }
+
+  # ===========================================================================
+  # DuckDNS Direktbetrieb (Port 443)
+  #
+  # Diese Blöcke sind bereit für "später":
+  #   -> Wenn Du 443 wieder auf Pi #1 forwardest, sind die Hosts sofort aktiv.
+  # Heute (443 auf Traefik): diese Server werden i.d.R. nicht aus dem Internet erreicht.
+  # ===========================================================================
+  # Home Assistant über duckdns-SSL 
+  server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+
+    server_name ha.hajo62.duckdns.org; 
+
+    location / {
+      limit_req  zone=public_rl burst=20 nodelay; 
+      limit_conn perip_conn 20; 
+
+      proxy_pass http://192.168.178.3:8123; 
+      proxy_set_header Host $host; 
+      proxy_http_version 1.1; 
+      proxy_set_header X-Real-IP $remote_addr; 
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; 
+      proxy_set_header X-Forwarded-Proto https; 
+      proxy_set_header Upgrade $http_upgrade; 
+      proxy_set_header Connection $connection_upgrade; 
+
+      proxy_read_timeout 3600s; 
+      proxy_send_timeout 3600s; 
+    }
+  }
+
+  # Nextcloud über duckdns-SSL 
+  server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+
+    server_name nc.hajo62.duckdns.org; 
+
+    client_max_body_size 512M; 
+    client_body_timeout 300s; 
+    fastcgi_buffers 64 4K; 
+
+    # Nextcloud-spezifische Header/Gzip (Bestand) 
+    gzip on;
+    gzip_vary on;
+    gzip_comp_level 4;
+    gzip_min_length 256;
+    gzip_proxied expired no-cache no-store private no_last_modified no_etag auth;
+    gzip_types application/atom+xml application/javascript application/json application/ld+json
+               application/manifest+json application/rss+xml application/vnd.geo+json
+               application/vnd.ms-fontobject application/x-font-ttf application/x-web-app-manifest+json
+               application/xhtml+xml application/xml font/opentype image/bmp image/svg+xml image/x-icon
+               text/cache-manifest text/css text/plain text/vcard text/vnd.rim.location.xloc text/vtt
+               text/x-component text/x-cross-domain-policy;
+
+    add_header Referrer-Policy "no-referrer" always; 
+    add_header X-Content-Type-Options "nosniff" always; 
+    add_header X-Download-Options "noopen" always; 
+    add_header X-Frame-Options "SAMEORIGIN" always; 
+    add_header X-Permitted-Cross-Domain-Policies "none" always; 
+    add_header X-Robots-Tag "none" always; 
+    add_header X-XSS-Protection "1; mode=block" always; 
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always; 
+    fastcgi_hide_header X-Powered-By; 
+
+    # Bestand (belassen) 
+    root /var/www/nextcloud;
+    index index.php index.html /index.php$request_uri;
+
+    location = /robots.txt {
+      allow all;
+      log_not_found off;
+      access_log off;
+    }
+
+    location ^~ /.well-known {
+      location = /.well-known/carddav { return 301 /remote.php/dav/; }
+      location = /.well-known/caldav  { return 301 /remote.php/dav/; }
+      location /.well-known/acme-challenge { try_files $uri $uri/ =404; }
+      location /.well-known/pki-validation { try_files $uri $uri/ =404; }
+      return 301 /index.php$request_uri;
+    }
+
+    proxy_max_temp_file_size 4096m; 
+
+    location / {
+      limit_req  zone=public_rl burst=50 nodelay; 
+      limit_conn perip_conn 20; 
+
+      add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always; 
+      add_header Referrer-Policy "same-origin"; 
+
+      proxy_cookie_path / "/; secure; HttpOnly"; 
+      proxy_set_header Host $http_host; 
+      proxy_set_header X-Real-IP $remote_addr; 
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; 
+      proxy_set_header X-Forwarded-Proto https; 
+
+      proxy_pass http://192.168.178.3:8088; 
+
+      proxy_read_timeout 3600s; 
+      proxy_send_timeout 3600s; 
+    }
+  }
+
+  # PiGallery2 über duckdns-SSL 
+  server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+
+    server_name pg.hajo62.duckdns.org; 
+
+    gzip on;
+
+    location / {
+      limit_req  zone=public_rl burst=20 nodelay; 
+      limit_conn perip_conn 20; 
+
+      proxy_pass http://192.168.178.3:8001; 
+      proxy_http_version 1.1; 
+      proxy_set_header Upgrade $http_upgrade; 
+      proxy_set_header Connection $connection_upgrade; 
+      proxy_set_header Host $host; 
+      proxy_set_header X-Real-IP $remote_addr; 
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; 
+      proxy_set_header X-Forwarded-Proto https; 
+      proxy_cache_bypass $http_upgrade; 
+
+      proxy_read_timeout 3600s; 
+      proxy_send_timeout 3600s; 
+    }
+  }
+
+  # Signal Rest API über duckdns-SSL (Bestand) 
+  server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+
+    server_name signal.hajo62.duckdns.org; 
+
+    location / {
+      proxy_pass http://192.168.178.3:8080; 
+      proxy_http_version 1.1; 
+      proxy_set_header Upgrade $http_upgrade; 
+      proxy_set_header Connection $connection_upgrade; 
+      proxy_set_header Host $host; 
+      proxy_cache_bypass $http_upgrade; 
+      limit_req zone=signal; 
+    }
+  }
+
+  # DigiKam über duckdns-SSL (Bestand) 
+  server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+
+    server_name digikam.hajo62.duckdns.org; 
+
+    gzip on;
+
+    location / {
+      auth_basic "Restricted"; 
+      auth_basic_user_file /etc/nginx/passwords; 
+
+      proxy_pass http://192.168.178.3:4000; 
+      proxy_redirect off; 
+      proxy_http_version 1.1; 
+      proxy_set_header Upgrade $http_upgrade; 
+      proxy_set_header Connection $connection_upgrade; 
+      proxy_set_header Host $host; 
+      proxy_cache_bypass $http_upgrade; 
+      proxy_set_header X-Real-IP $remote_addr; 
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; 
+      proxy_set_header X-Forwarded-Proto https; 
+    }
+  }
+
+  # ===========================================================================
+  # Traefik -> nginx (Port 80 intern)
+  #
+  # WICHTIG: Nur Traefik als TCP-Peer zulassen.
+  #          NICHT allow/deny, weil real_ip $remote_addr auf Client-IP umschreibt.
+  #          Stattdessen prüfen wir $realip_remote_addr (Peer-IP).
+  # ===========================================================================
+
+  # Home Assistant via Traefik -> nginx 
+  server {
+    listen 80;
+    server_name ha.hajo63.de; 
+
+    # Traefik-only Gate (Peer-IP)
+    if ($realip_remote_addr != "192.168.178.55") { return 403; }
+
+    location / {
+      proxy_pass http://homeassistant_backend; 
+      proxy_http_version 1.1; 
+      proxy_set_header Host $host; 
+      proxy_set_header X-Real-IP $remote_addr; 
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; 
+      proxy_set_header X-Forwarded-Proto $scheme; 
+      proxy_set_header Upgrade $http_upgrade; 
+      proxy_set_header Connection $connection_upgrade; 
+      proxy_read_timeout 3600s; 
+      proxy_send_timeout 3600s; 
+    }
+  }
+
+  # Nextcloud via Traefik -> nginx 
+  server {
+    listen 80;
+    server_name nc.hajo63.de; 
+
+    # Traefik-only Gate (Peer-IP)
+    if ($realip_remote_addr != "192.168.178.55") { return 403; }
+
+    client_max_body_size 2048M; 
+
+    add_header X-Content-Type-Options nosniff; 
+    add_header X-Frame-Options "SAMEORIGIN"; 
+    add_header X-XSS-Protection "1; mode=block"; 
+
+    location = /robots.txt {
+      allow all;
+      log_not_found off;
+      access_log off;
+    }
+
+    location / {
+      proxy_pass http://nextcloud_backend; 
+      proxy_http_version 1.1; 
+      proxy_set_header Host $host; 
+      proxy_set_header X-Real-IP $remote_addr; 
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; 
+      proxy_set_header X-Forwarded-Proto $scheme; 
+      proxy_read_timeout 3600s; 
+      proxy_send_timeout 3600s; 
+      proxy_request_buffering off; 
+    }
+  }
+
+  # PiGallery2 via Traefik -> nginx
+  # (In Deiner laufenden Datei existiert dieser vhost auf 80 bereits: pg.hajo63.de) 
+  server {
+    listen 80;
+    server_name pg.hajo63.de; 
+
+    # Traefik-only Gate (Peer-IP)
+    if ($realip_remote_addr != "192.168.178.55") { return 403; }
+
+    location / {
+      proxy_pass http://192.168.178.3:8001; 
+      proxy_http_version 1.1; 
+      proxy_set_header Host $host; 
+      proxy_set_header X-Real-IP $remote_addr; 
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; 
+      proxy_set_header X-Forwarded-Proto $scheme; 
+      proxy_set_header Upgrade $http_upgrade; 
+      proxy_set_header Connection $connection_upgrade; 
+      proxy_read_timeout 3600s; 
+      proxy_send_timeout 3600s; 
+    }
+  }
+}
+``

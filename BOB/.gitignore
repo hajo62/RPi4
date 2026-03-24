@@ -1,7 +1,7 @@
 # ============================================
-# .gitignore für /home/hajo
+# .gitignore für BOB Repository
 # ============================================
-# Git-Repository im Home-Verzeichnis für umfassendes Backup
+# Raspberry Pi 5 Server Configuration
 # Sensible Daten werden durch verschlüsseltes Backup gesichert
 
 # ============================================
@@ -27,10 +27,15 @@
 # Container-Daten
 docker/*/data/
 docker/*/avatars/
+docker/*/db/
 
 # Logs
 docker/*/logs/
 **/*.log
+*.log.gz
+
+# Docker volumes
+**/volumes/
 
 # ============================================
 # Backup-Verzeichnisse
@@ -38,7 +43,9 @@ docker/*/logs/
 
 # Verschlüsselte Backups (werden separat gesichert)
 backups/
-*.tar.gz
+backup/*.tar.gz
+backup/*.sql
+backup/*.gpg
 *.tar.gz.gpg
 
 # ============================================
@@ -84,3 +91,8 @@ backups/
 
 # Beispiel-Dateien behalten
 !**/.env.example
+
+# ============================================
+# Reorganization Script (temporary)
+# ============================================
+reorganize-structure.sh

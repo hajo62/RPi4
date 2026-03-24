@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>geoblock-monitor-live v15</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:0;background:#0b1220;color:#e6e9ef}
+    header{padding:16px 20px;background:#0f1b33;border-bottom:1px solid #1f2b4a}
+    h1{margin:0;font-size:18px}
+    main{padding:18px 20px;max-width:1100px;margin:auto}
+    .grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+    .card{background:#0f1b33;border:1px solid #1f2b4a;border-radius:12px;padding:12px}
+    .k{font-size:12px;color:#a8b3cf}
+    .v{font-size:26px;font-weight:700;margin-top:4px}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+    pre{white-space:pre-wrap;word-break:break-word;background:#0b1220;border:1px solid #1f2b4a;border-radius:12px;padding:12px;margin:0}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:8px 10px;border-bottom:1px solid #1f2b4a;text-align:left;font-size:13px}
+    th{color:#a8b3cf;font-weight:600}
+    .muted{color:#a8b3cf;font-size:12px}
+    .ok{color:#7ee787}
+    .warn{color:#ffcc66}
+    @media (max-width:900px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.row{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<header>
+  <h1>GeoBlock Monitor <span class="muted">live v15</span></h1>
+  <div class="muted" id="cfg">lade Konfiguration …</div>
+</header>
+<main>
+  <div class="grid">
+    <div class="card"><div class="k">Blocked (10 min)</div><div class="v" id="b10">–</div></div>
+    <div class="card"><div class="k">Blocked (1 h)</div><div class="v" id="b1h">–</div></div>
+    <div class="card"><div class="k">Blocked (24 h)</div><div class="v" id="b24">–</div></div>
+    <div class="card"><div class="k">Alle Requests (10 min)</div><div class="v" id="a10">–</div></div>
+    <div class="card"><div class="k">Alle Requests (1 h)</div><div class="v" id="a1h">–</div></div>
+    <div class="card"><div class="k">Alle Requests (24 h)</div><div class="v" id="a24">–</div></div>
+    <div class="card"><div class="k">Direct-IP Hits (24 h)</div><div class="v" id="d24">–</div></div>
+    <div class="card"><div class="k">CrowdSec Blocks (24 h)</div><div class="v" id="c24">–</div></div>
+  </div>
+
+  <div class="row">
+    <div class="card">
+      <div class="k">Top geblockte IPs (24 h)</div>
+      <table><thead><tr><th>IP</th><th>Count</th></tr></thead><tbody id="tb_ip_block"></tbody></table>
+      <div class="muted">Geo-IP nutzt Fallback-Kette. Wenn Geo nicht möglich ist, wird dennoch gezählt (cc=??).</div>
+    </div>
+    <div class="card">
+      <div class="k">Top Länder (24 h)</div>
+      <table><thead><tr><th>CC</th><th>Count</th></tr></thead><tbody id="tb_cc"></tbody></table>
+      <div class="k" style="margin-top:10px">Top Hosts (24 h)</div>
+      <table><thead><tr><th>Host</th><th>Count</th></tr></thead><tbody id="tb_host"></tbody></table>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="card">
+      <div class="k">Direct-IP Details</div>
+      <div class="muted">v15 erkennt IPv4+IPv6 Literals in RequestHost/RequestAddr (mit/ohne Port/[]), auch bei leerem Host.</div>
+      <div class="k" style="margin-top:10px">Top Direct-IP Quellen (24 h)</div>
+      <table><thead><tr><th>Source IP</th><th>Count</th></tr></thead><tbody id="tb_dir_src"></tbody></table>
+      <div class="k" style="margin-top:10px">Top Direct-IP Targets (24 h)</div>
+      <table><thead><tr><th>Target</th><th>Count</th></tr></thead><tbody id="tb_dir_tgt"></tbody></table>
+      <div class="k" style="margin-top:10px">IP-Versionen (24 h)</div>
+      <table><thead><tr><th>Version</th><th>Count</th></tr></thead><tbody id="tb_dir_ver"></tbody></table>
+    </div>
+    <div class="card">
+      <div class="k">Debug</div>
+      <pre id="debug">–</pre>
+    </div>
+  </div>
+</main>
+
+<script>
+function el(id){return document.getElementById(id)}
+function fillTable(tbody, rows){
+  tbody.innerHTML='';
+  if(!rows || rows.length===0){
+    const tr=document.createElement('tr');
+    const td=document.createElement('td'); td.colSpan=2; td.textContent='(keine Daten)'; td.className='muted';
+    tr.appendChild(td); tbody.appendChild(tr);
+    return;
+  }
+  for(const [k,v] of rows){
+    const tr=document.createElement('tr');
+    const td1=document.createElement('td'); td1.textContent=k;
+    const td2=document.createElement('td'); td2.textContent=v;
+    tr.appendChild(td1); tr.appendChild(td2);
+    tbody.appendChild(tr);
+  }
+}
+
+async function refresh(){
+  try{
+    const r=await fetch('/api/stats',{cache:'no-store'});
+    const s=await r.json();
+
+    el('b10').textContent=s.countsBlocked['10m'];
+    el('b1h').textContent=s.countsBlocked['1h'];
+    el('b24').textContent=s.countsBlocked['24h'];
+
+    el('a10').textContent=s.countsAll['10m'];
+    el('a1h').textContent=s.countsAll['1h'];
+    el('a24').textContent=s.countsAll['24h'];
+
+    el('d24').textContent=s.countsDirectIP['24h'];
+    el('c24').textContent=s.countsCrowdSec['24h'];
+
+    fillTable(el('tb_ip_block'), s.topIPsBlocked24h);
+    fillTable(el('tb_cc'), s.topCountries24h);
+    fillTable(el('tb_host'), s.topHosts24h);
+
+    fillTable(el('tb_dir_src'), s.topDirectIPSrc24h);
+    fillTable(el('tb_dir_tgt'), s.topDirectIPTargets24h);
+    fillTable(el('tb_dir_ver'), s.topDirectIPVersions24h);
+
+    const cfg=s.config||{};
+    const lastErr = cfg.lastGeoError ? ` · lastGeoError: <span class="warn">${cfg.lastGeoError}</span>` : '';
+    el('cfg').innerHTML = `Log: <span class="ok">${cfg.logFile||'-'}</span> · DirectIP: <span class="warn">v15</span>` + lastErr;
+
+    el('debug').textContent = JSON.stringify(cfg, null, 2);
+  }catch(e){
+    el('debug').textContent=String(e);
+  }
+}
+refresh();
+setInterval(refresh, 2000);
+</script>
+</body>
+</html>
