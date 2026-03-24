@@ -6,7 +6,7 @@ services:
   # This week in past
   ##################################################
   this-week-in-past:
-    image: rouhim/this-week-in-past:1.31.26
+    image: rouhim/this-week-in-past:1.32.35
     container_name: this-week-in-past
     
     # Whats-Up-Docker Labels
@@ -51,7 +51,7 @@ services:
   # This week in past - priv
   ##################################################
   this-week-in-past-priv:
-    image: rouhim/this-week-in-past:1.31.26
+    image: rouhim/this-week-in-past:1.32.35
     container_name: this-week-in-past-priv
     
     # Whats-Up-Docker Labels
